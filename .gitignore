@@ -1,4 +1,5 @@
 !migrations
+Cargo.lock
 target
 Migrant.toml
 db
