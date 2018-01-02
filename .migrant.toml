@@ -1,0 +1,17 @@
+
+# required, do not edit
+database_type = "postgres"
+
+database_name = "testing"      # required
+database_user = "testing"      # required
+database_password = "testing"
+
+database_host = "localhost"         # default "localhost"
+database_port = "5432"              # default "5432"
+migration_location = "migrations"   # default "migrations"
+
+# with the format:
+# [database_params]
+# key = "value"
+[database_params]
+
