@@ -3,6 +3,14 @@
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Removed
+
+
+## [0.14.0]
+### Added
 - Explicit & configurable `Settings` struct.
     - These are the configurable settings used by the `Config` type
       are were previously only configurable in a file
