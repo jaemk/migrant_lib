@@ -130,14 +130,17 @@ static PG_CONFIG_TEMPLATE: &'static str = r#"
 # Required, do not edit
 database_type = "postgres"
 
-database_name = "__DB_NAME__"      # required
-database_user = ""      # required
+# Required database info
+database_name = "__DB_NAME__"
+database_user = ""
 database_password = ""
 
+# Configurable database info
 database_host = "localhost"         # default "localhost"
 database_port = "5432"              # default "5432"
 migration_location = "migrations"   # default "migrations"
 
+# Extra database connection parameters
 # with the format:
 # [database_params]
 # key = "value"
