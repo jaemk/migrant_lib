@@ -1,4 +1,7 @@
-///! Error types
+/*!
+Error types
+*/
+
 use std;
 use toml;
 use url;
