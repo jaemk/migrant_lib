@@ -96,7 +96,7 @@ pub mod errors;
 mod drivers;
 mod migratable;
 mod connection;
-mod config;
+pub mod config;
 pub mod migration;
 
 pub mod types;
@@ -416,7 +416,7 @@ fn next_available<'a>(direction: &Direction, available: &'a [Box<Migratable>], a
 /// Apply the migration in the specified direction
 fn run_migration(config: &Config, direction: &Direction,
                  migration: &Box<Migratable>) -> std::result::Result<(), Box<std::error::Error>> {
-    let db_kind: DbKind = config.settings.database_type.as_str().parse()?;
+    let db_kind = config.settings.inner.db_kind();
     Ok(match *direction {
         Direction::Up => {
             migration.apply_up(db_kind, config)?;
@@ -557,8 +557,8 @@ pub fn new(config: &Config, tag: &str) -> Result<()> {
 
 /// Open a repl connection to the given `Config` settings
 pub fn shell(config: &Config) -> Result<()> {
-    Ok(match config.settings.database_type.as_ref() {
-        "sqlite" => {
+    Ok(match config.settings.inner.db_kind() {
+        DbKind::Sqlite => {
             let db_path = config.database_path()?;
             let _ = Command::new("sqlite3")
                     .arg(db_path.to_str().unwrap())
@@ -567,7 +567,7 @@ pub fn shell(config: &Config) -> Result<()> {
                                               "Error running command `sqlite3`. Is it available on your PATH?"))?
                     .wait()?;
         }
-        "postgres" => {
+        DbKind::Postgres => {
             let conn_str = config.connect_string()?;
             Command::new("psql")
                     .arg(&conn_str)
@@ -576,7 +576,6 @@ pub fn shell(config: &Config) -> Result<()> {
                                               "Error running command `psql`. Is it available on your PATH?"))?
                     .wait()?;
         }
-        _ => unreachable!(),
     })
 }
 
