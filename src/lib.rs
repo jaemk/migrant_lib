@@ -268,34 +268,34 @@ impl Migrator {
     /// Set `direction`. Default is `Up`.
     /// `Up`   => run `up.sql`.
     /// `Down` => run `down.sql`.
-    pub fn direction(mut self, dir: Direction) -> Self {
+    pub fn direction(&mut self, dir: Direction) -> &mut Self {
         self.direction = dir;
         self
     }
 
     /// Set `force` to forcefully apply migrations regardless of errors
-    pub fn force(mut self, force: bool) -> Self {
+    pub fn force(&mut self, force: bool) -> &mut Self {
         self.force = force;
         self
     }
 
     /// Set `fake` to fake application of migrations.
-    /// `Config` will be updated as if migrations were actually run.
-    pub fn fake(mut self, fake: bool) -> Self {
+    /// Applied migrations table will be updated as if migrations were actually run.
+    pub fn fake(&mut self, fake: bool) -> &mut Self {
         self.fake = fake;
         self
     }
 
     /// Set `all` to run all remaining available migrations in the given `direction`
-    pub fn all(mut self, all: bool) -> Self {
+    pub fn all(&mut self, all: bool) -> &mut Self {
         self.all = all;
         self
     }
 
     /// Apply migrations using current configuration
-    pub fn apply(self) -> Result<()> {
+    pub fn apply(&self) -> Result<()> {
         apply_migration(
-            &self.config, self.direction,
+            &self.config, &self.direction,
             self.force, self.fake, self.all,
             )
     }
@@ -432,7 +432,7 @@ fn run_migration(config: &Config, direction: &Direction,
 
 
 /// Try applying the next available migration in the specified `Direction`
-fn apply_migration(config: &Config, direction: Direction,
+fn apply_migration(config: &Config, direction: &Direction,
                        force: bool, fake: bool, all: bool) -> Result<()> {
     let migrations = match config.migrations {
         Some(ref migrations) => migrations.clone(),
@@ -465,7 +465,7 @@ fn apply_migration(config: &Config, direction: Direction,
             }
 
             let mig_tag = next.tag();
-            match direction {
+            match *direction {
                 Direction::Up => {
                     config.insert_migration_tag(&mig_tag)?;
                 }
