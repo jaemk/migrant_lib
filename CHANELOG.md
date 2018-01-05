@@ -3,6 +3,14 @@
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Removed
+
+
+## [0.15.0]
+### Added
 - Add specific settings builders per database type
 - Update internal handling of settings
 
@@ -11,6 +19,8 @@
 - Update settings
 - Update postgres settings file template
 - Update test.sh script to exit with an error when `cargo test` fails
+- Update `ConfigInitializer::for_database` to take a `DbKind` instead of `str`
+- Update `Migrator` api to use mut refs instead of passing ownership
 
 ### Removed
 - `Settings::with_db_type`
