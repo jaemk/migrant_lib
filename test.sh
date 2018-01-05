@@ -21,10 +21,19 @@ function teardown() {
 
 setup
 SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES cargo test -- --nocapture
+if [ $? -eq 0 ]; then
+    teardown
+else
+    teardown
+    exit 1
+fi
 
-teardown
 setup
-
 SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES cargo test --features 'sqlite postgresql' -- --nocapture
+if [ $? -eq 0 ]; then
+    teardown
+else
+    teardown
+    exit 1
+fi
 
-teardown
