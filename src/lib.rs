@@ -34,12 +34,12 @@ fn down(_: DbConn) -> Result<(), Box<std::error::Error>> {
 
 config.use_migrations(vec![
     FileMigration::with_tag("initial")?
-        .up("migrations/initial/up.sql")?
-        .down("migrations/initial/down.sql")?
+        .up("migrations/embedded/initial/up.sql")?
+        .down("migrations/embedded/initial/down.sql")?
         .boxed(),
     EmbeddedMigration::with_tag("second")?
-        .up(include_str!("../migrations/second/up.sql"))
-        .down(include_str!("../migrations/second/down.sql"))
+        .up(include_str!("../migrations/embedded/second/up.sql"))
+        .down(include_str!("../migrations/embedded/second/down.sql"))
         .boxed(),
     FnMigration::with_tag("custom")?
         .up(up)

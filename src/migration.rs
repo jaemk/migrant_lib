@@ -138,8 +138,8 @@ impl Migratable for FileMigration {
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
 /// EmbeddedMigration::with_tag("initial")?
-///     .up(include_str!("../migrations/initial/up.sql"))
-///     .down(include_str!("../migrations/initial/down.sql"));
+///     .up(include_str!("../migrations/embedded/initial/up.sql"))
+///     .down(include_str!("../migrations/embedded/initial/down.sql"));
 /// # Ok(())
 /// # }
 /// ```

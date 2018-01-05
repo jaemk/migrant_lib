@@ -471,12 +471,12 @@ impl Config {
     /// let mut config = Config::from_settings_file(&p)?;
     /// config.use_migrations(vec![
     ///     EmbeddedMigration::with_tag("initial")?
-    ///         .up(include_str!("../migrations/initial/up.sql"))
-    ///         .down(include_str!("../migrations/initial/down.sql"))
+    ///         .up(include_str!("../migrations/embedded/initial/up.sql"))
+    ///         .down(include_str!("../migrations/embedded/initial/down.sql"))
     ///         .boxed(),
     ///     FileMigration::with_tag("second")?
-    ///         .up("migrations/second/up.sql")?
-    ///         .down("migrations/second/down.sql")?
+    ///         .up("migrations/embedded/second/up.sql")?
+    ///         .down("migrations/embedded/second/down.sql")?
     ///         .boxed(),
     ///     FnMigration::with_tag("custom")?
     ///         .up(migrations::Custom::up)
@@ -559,12 +559,13 @@ impl Config {
     ///
     /// ```rust,no_run
     /// # extern crate migrant_lib;
-    /// # use migrant_lib::{Settings, Config, DbKind};
+    /// # use migrant_lib::{Settings, Config};
     /// # fn main() { run().unwrap(); }
     /// # fn run() -> Result<(), Box<std::error::Error>> {
-    /// let mut settings = Settings::with_db_type(DbKind::Sqlite);
-    /// settings.database_path("/absolute/path/to/db.db")?;
-    /// settings.migration_location("/absolute/path/to/migration_dir")?;
+    /// let settings = Settings::configure_sqlite()
+    ///     .database_path("/absolute/path/to/db.db")?
+    ///     .migration_location("/absolute/path/to/migration_dir")?
+    ///     .build()?;
     /// let config = Config::with_settings(&settings);
     /// // Setup migrations table
     /// config.setup()?;
