@@ -5,7 +5,7 @@ option of creating programmable migrations in rust!
 
 This example shows functionality for both sqlite and postgres databases, but
 has a `Settings` object configured to run only for sqlite.
-This should be run with `cargo run --example embedded_programmable`
+This should be run with `cargo run --example embedded_programmable --features sqlite`
 
 */
 extern crate migrant_lib;
