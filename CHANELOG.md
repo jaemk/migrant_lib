@@ -3,10 +3,16 @@
 
 ## [Unreleased]
 ### Added
+- Add specific settings builders per database type
+- Update internal handling of settings
 
 ### Changed
+- Replace `Settings::with_db_type` with `Settings::configure_<dbtype>` methods
+- Update settings
+- Update postgres settings file template
 
 ### Removed
+- `Settings::with_db_type`
 
 
 ## [0.14.0]
