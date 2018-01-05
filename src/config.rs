@@ -376,15 +376,6 @@ impl ConfigurableSettings {
 /// or defined explicitly in source using the provided builder methods.
 pub struct Settings {
     pub(crate) inner: ConfigurableSettings,
-    // pub(crate) migration_location: Option<String>,
-    // pub(crate) database_type: String,
-    // pub(crate) database_path: Option<String>,
-    // pub(crate) database_name: Option<String>,
-    // pub(crate) database_host: Option<String>,
-    // pub(crate) database_port: Option<String>,
-    // pub(crate) database_user: Option<String>,
-    // pub(crate) database_password: Option<String>,
-    // pub(crate) database_params: Option<HashMap<String, String>>,
 }
 impl Settings {
     /// Initialize from a serialized settings file
