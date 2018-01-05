@@ -10,6 +10,7 @@
 - Replace `Settings::with_db_type` with `Settings::configure_<dbtype>` methods
 - Update settings
 - Update postgres settings file template
+- Update test.sh script to exit with an error when `cargo test` fails
 
 ### Removed
 - `Settings::with_db_type`
