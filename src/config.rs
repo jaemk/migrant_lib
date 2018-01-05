@@ -25,7 +25,7 @@ use errors::*;
 /// Project configuration/settings builder to initialize a new settings file
 pub struct ConfigInitializer {
     dir: PathBuf,
-    database_type: Option<String>,
+    database_type: Option<DbKind>,
     interactive: bool,
     database_name: Option<String>,
 }
@@ -41,18 +41,9 @@ impl ConfigInitializer {
     }
 
     /// Specify the database_type, checks whether the type is supported
-    pub fn for_database(mut self, db_type: Option<&str>) -> Result<Self> {
-        match db_type {
-            None => self.database_type = None,
-            Some(db_type) => {
-                match db_type {
-                    "postgres" | "sqlite" => (),
-                    e => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", e),
-                };
-                self.database_type = Some(db_type.to_owned());
-            }
-        }
-        Ok(self)
+    pub fn for_database(mut self, db_kind: DbKind) -> Self {
+        self.database_type = Some(db_kind);
+        self
     }
 
     /// Set interactive prompts, default is `true`
@@ -102,35 +93,36 @@ impl ConfigInitializer {
                 .map_err(|e| format_err!(ErrorKind::Config, "unable to create a `{}` config -> {}", CONFIG_FILE, e))?
         };
 
-        let db_type = if let Some(db_type) = self.database_type.as_ref() {
-            db_type.to_owned()
+        let db_kind = if let Some(db_kind) = self.database_type {
+            db_kind
         } else {
             if !self.interactive {
                 bail_fmt!(ErrorKind::Config, "database type must be specified if running non-interactively")
             }
             println!("\n ** Gathering database information...");
-            let db_type = prompt(" database type (sqlite|postgres) >> ")?;
-            match db_type.as_ref() {
-                "postgres" | "sqlite" => (),
-                e => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", e),
+            let db_kind = {
+                let db_kind = prompt(" database type (sqlite|postgres) >> ")?;
+                match db_kind.parse::<DbKind>() {
+                    Ok(kind) => kind,
+                    Err(_) => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", db_kind),
+                }
             };
-            db_type
+            db_kind
         };
 
-        println!("\n ** Writing {} config template to {:?}", db_type, config_path);
-        match db_type.as_ref() {
-            "postgres" => {
+        println!("\n ** Writing {} config template to {:?}", db_kind, config_path);
+        match db_kind {
+            DbKind::Postgres => {
                 let content = PG_CONFIG_TEMPLATE
                     .replace("__DB_NAME__", &self.database_name.unwrap_or_else(|| String::new()));
                 write_to_path(&config_path, content.as_bytes())?;
             }
-            "sqlite" => {
+            DbKind::Sqlite => {
                 let content = SQLITE_CONFIG_TEMPLATE
                     .replace("__CONFIG_DIR__", config_path.parent().unwrap().to_str().unwrap())
                     .replace("__DB_PATH__", &self.database_name.unwrap_or_else(|| String::new()));
                 write_to_path(&config_path, content.as_bytes())?;
             }
-            _ => unreachable!(),
         };
 
         println!("\n ** Please update `{}` with your database credentials and run `setup`", CONFIG_FILE);
@@ -718,7 +710,7 @@ impl Config {
     }
 
     /// Return the absolute path to the database file. This is intended for
-    /// sqlite3 databases only
+    /// sqlite databases only
     pub fn database_path(&self) -> Result<PathBuf> {
         let path = self.settings.inner.database_path()?;
         if path.is_absolute() {
