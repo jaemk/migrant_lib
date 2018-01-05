@@ -10,7 +10,7 @@ This should be run with `cargo run --example embedded_programmable`
 */
 extern crate migrant_lib;
 
-use migrant_lib::{Config, Settings, DbKind, FileMigration, EmbeddedMigration, FnMigration, Migrator, Direction};
+use migrant_lib::{Config, Settings, FileMigration, EmbeddedMigration, FnMigration, Migrator, Direction};
 
 
 mod migrations {
@@ -85,8 +85,9 @@ fn run() -> Result<(), Box<std::error::Error>> {
     let path = std::path::Path::new("db/db.db");
     create_file_if_missing(path)?;
     let path = path.canonicalize()?;
-    let mut settings = Settings::with_db_type(DbKind::Sqlite);
-    settings.database_path(&path)?;
+    let settings = Settings::configure_sqlite()
+        .database_path(&path)?
+        .build()?;
 
     let mut config = Config::with_settings(&settings);
     config.setup()?;
@@ -94,12 +95,12 @@ fn run() -> Result<(), Box<std::error::Error>> {
     // Define migrations
     config.use_migrations(vec![
         EmbeddedMigration::with_tag("initial")?
-            .up(include_str!("../migrations/initial/up.sql"))
-            .down(include_str!("../migrations/initial/down.sql"))
+            .up(include_str!("../migrations/embedded/initial/up.sql"))
+            .down(include_str!("../migrations/embedded/initial/down.sql"))
             .boxed(),
         FileMigration::with_tag("second")?
-            .up("migrations/second/up.sql")?
-            .down("migrations/second/down.sql")?
+            .up("migrations/embedded/second/up.sql")?
+            .down("migrations/embedded/second/down.sql")?
             .boxed(),
         FnMigration::with_tag("custom")?
             .up(migrations::Custom::up)

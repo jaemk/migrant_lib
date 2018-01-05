@@ -22,19 +22,26 @@ fn run() -> Result<(), migrant_lib::Error> {
     };
     config.reload()?;
 
-    // This will fail if no migration files are present!
-    // Run all available `up` migrations
-    // migrant_lib::Migrator::with_config(&config)
-    //     .direction(migrant_lib::Direction::Up)
-    //     .all(true)
-    //     .apply()?;
+    println!("Applying all migrations...");
+    migrant_lib::Migrator::with_config(&config)
+        .direction(migrant_lib::Direction::Up)
+        .all(true)
+        .apply()?;
+    let config = config.reload()?;
+    migrant_lib::list(&config)?;
 
+    println!("Unapplying all migrations...");
+    migrant_lib::Migrator::with_config(&config)
+        .direction(migrant_lib::Direction::Down)
+        .all(true)
+        .apply()?;
+    let config = config.reload()?;
     migrant_lib::list(&config)?;
     Ok(())
 }
 
 pub fn main() {
     if let Err(e) = run() {
-        println!("[ERROR] {}", e);
+        println!("[ERROR] {:?}", e);
     }
 }
