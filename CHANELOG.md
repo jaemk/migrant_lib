@@ -1,10 +1,24 @@
 # Changelog
 
-
 ## [Unreleased]
 ### Added
 
 ### Changed
+
+### Removed
+
+
+## [0.15.1]
+### Added
+- Add `ConfigInitializer::migration_location` to override default `migration_location`
+  in config file generated templates.
+
+### Changed
+- Update `migrant_cli_compatible` example to look in the `managed` migrations dir
+  so it sees proper migrant-generated tags/filenames.
+- Convert remaining public signatures that took `Path`/`PathBuf` to `T: AsRef<Path>`
+- Deprecate `ConfigInitializer::for_database`
+- Add `ConfigInitializer::database_type` to replace `ConfigInitializer::for_database`
 
 ### Removed
 
