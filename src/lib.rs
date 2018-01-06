@@ -303,7 +303,8 @@ impl Migrator {
 
 
 /// Search for a `Migrant.toml` file in the current and parent directories
-pub fn search_for_settings_file(base: &PathBuf) -> Option<PathBuf> {
+pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
+    let base = base.as_ref().to_owned();
     let mut base = base.clone();
     loop {
         for path in fs::read_dir(&base).unwrap() {

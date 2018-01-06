@@ -32,9 +32,9 @@ pub struct ConfigInitializer {
 }
 impl ConfigInitializer {
     /// Start a new `ConfigInitializer`
-    pub fn new(dir: &Path) -> Self {
+    pub fn new<T: AsRef<Path>>(dir: T) -> Self {
         Self {
-            dir: dir.to_owned(),
+            dir: dir.as_ref().to_owned(),
             database_type: None,
             interactive: true,
             database_name: None,
@@ -643,8 +643,8 @@ impl Config {
     }
 
     /// Start a config initializer in the given directory
-    pub fn init_in(dir: &Path) -> ConfigInitializer {
-        ConfigInitializer::new(dir)
+    pub fn init_in<T: AsRef<Path>>(dir: T) -> ConfigInitializer {
+        ConfigInitializer::new(dir.as_ref())
     }
 
     /// - Confirm the database can be accessed
