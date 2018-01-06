@@ -42,8 +42,15 @@ impl ConfigInitializer {
         }
     }
 
-    /// Specify the database_type, checks whether the type is supported
+    /// Specify the database_type
+    #[deprecated(since="0.15.1", note="Method moved to `ConfigInitializer::database_type`")]
     pub fn for_database(mut self, db_kind: DbKind) -> Self {
+        self.database_type = Some(db_kind);
+        self
+    }
+
+    /// Specify the database_type
+    pub fn database_type(mut self, db_kind: DbKind) -> Self {
         self.database_type = Some(db_kind);
         self
     }
