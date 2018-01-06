@@ -28,6 +28,7 @@ pub struct ConfigInitializer {
     database_type: Option<DbKind>,
     interactive: bool,
     database_name: Option<String>,
+    migration_location: String,
 }
 impl ConfigInitializer {
     /// Start a new `ConfigInitializer`
@@ -37,6 +38,7 @@ impl ConfigInitializer {
             database_type: None,
             interactive: true,
             database_name: None,
+            migration_location: "migrations".into(),
         }
     }
 
@@ -81,6 +83,14 @@ impl ConfigInitializer {
         self
     }
 
+    /// Specify migration file directory
+    pub fn migration_location<T: AsRef<Path>>(mut self, p: T) -> Result<Self> {
+        let p = p.as_ref();
+        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        self.migration_location = s.to_owned();
+        Ok(self)
+    }
+
     /// Generate a template config file using provided parameters or prompting the user.
     /// If running interactively, the file will be opened for editing and `Config::setup`
     /// will be run automatically.
@@ -114,13 +124,15 @@ impl ConfigInitializer {
         match db_kind {
             DbKind::Postgres => {
                 let content = PG_CONFIG_TEMPLATE
-                    .replace("__DB_NAME__", &self.database_name.unwrap_or_else(|| String::new()));
+                    .replace("__DB_NAME__", &self.database_name.unwrap_or_else(|| String::new()))
+                    .replace("__MIG_LOC__", &self.migration_location);
                 write_to_path(&config_path, content.as_bytes())?;
             }
             DbKind::Sqlite => {
                 let content = SQLITE_CONFIG_TEMPLATE
                     .replace("__CONFIG_DIR__", config_path.parent().unwrap().to_str().unwrap())
-                    .replace("__DB_PATH__", &self.database_name.unwrap_or_else(|| String::new()));
+                    .replace("__DB_PATH__", &self.database_name.unwrap_or_else(|| String::new()))
+                    .replace("__MIG_LOC__", &self.migration_location);
                 write_to_path(&config_path, content.as_bytes())?;
             }
         };

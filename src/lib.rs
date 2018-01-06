@@ -122,7 +122,7 @@ database_type = "sqlite"
 # ex.) database_name = "db/db.db"
 database_path = "__DB_PATH__"
 
-migration_location = "migrations"  # default "migrations"
+migration_location = "__MIG_LOC__"  # default "migrations"
 "#;
 
 
@@ -138,7 +138,7 @@ database_password = ""
 # Configurable database info
 database_host = "localhost"         # default "localhost"
 database_port = "5432"              # default "5432"
-migration_location = "migrations"   # default "migrations"
+migration_location = "__MIG_LOC__"  # default "migrations"
 
 # Extra database connection parameters
 # with the format:
