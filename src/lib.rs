@@ -11,7 +11,7 @@
 - File migrations can be either read from files at runtime or embedded in your executable at compile time.
 - Migration tags must all be unique and may only contain the characters `[a-z0-9-]`.
 - Function migrations must have the signature `fn(DbConn) -> Result<(), Box<std::error::Error>>`.
-  See the [embedded/programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
+  See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
   enabled (`postgresql` / `sqlite`).
@@ -60,7 +60,7 @@ This method only supports file-based migrations and those migration files must b
 (or the `migrant` cli). This is required because migration order is implied by file names which must follow
 a specific format and contain a valid timestamp.
 
-See the [migrant-cli-compatible](https://github.com/jaemk/migrant_lib/blob/master/examples/migrant_cli_compatible.rs)
+See the [migrant_cli_compatible](https://github.com/jaemk/migrant_lib/blob/master/examples/migrant_cli_compatible.rs)
 example for a working sample.
 
 */
