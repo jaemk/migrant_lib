@@ -1,5 +1,5 @@
 /*!
-[![Build Status](https://travis-ci.org/jaemk/migrant.svg?branch=master)](https://travis-ci.org/jaemk/migrant)
+[![Build Status](https://travis-ci.org/jaemk/migrant_lib.svg?branch=master)](https://travis-ci.org/jaemk/migrant_lib)
 [![crates.io:migrant_lib](https://img.shields.io/crates/v/migrant_lib.svg?label=migrant_lib)](https://crates.io/crates/migrant_lib)
 [![docs](https://docs.rs/migrant_lib/badge.svg)](https://docs.rs/migrant_lib)
 

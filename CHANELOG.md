@@ -8,6 +8,26 @@
 ### Removed
 
 
+## [0.16.0]
+### Added
+- Add ability to configure database specific options when initializing a
+  new settings file from the settings templates
+- Add additional configurable template params to postgres settings template
+- Add notes in `FileMigration` docs on what relative path definitions are
+  relative to
+
+### Changed
+- Rename `ConfigInitializer` to `SettingsFileInitializer`
+- Store extra database connection params in a `BTreeMap` so they come out ordered
+- Update examples
+- Update docs
+- Update readme
+- Exclude "ci/" dir in Cargo.toml
+- Fix travis ci build status link in readme & crate doc
+
+### Removed
+
+
 ## [0.15.1]
 ### Added
 - Add `ConfigInitializer::migration_location` to override default `migration_location`
