@@ -67,7 +67,8 @@ mod migrations {
 
 /// Migrant will normally handle creating a database file if it's missing.
 /// This is just so we can use `Path::canonicalize` to get the absolute
-/// path since it can't be hardcoded for this example.
+/// path since it can't be hardcoded for this example and `SqliteSettings`
+/// `database_path` must be absolute.
 pub fn create_file_if_missing(path: &std::path::Path) -> Result<bool, Box<std::error::Error>> {
     if path.exists() {
         Ok(false)

@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::env;
 use std::fs;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, BTreeMap};
 
 use toml;
 use url;
@@ -22,42 +22,82 @@ use errors::*;
 
 
 #[derive(Debug, Clone)]
-/// Project configuration/settings builder to initialize a new settings file
-pub struct ConfigInitializer {
-    dir: PathBuf,
-    database_type: Option<DbKind>,
-    interactive: bool,
-    database_name: Option<String>,
-    migration_location: String,
+enum DatabaseConfigOptions {
+    Sqlite(SqliteSettingsBuilder),
+    Postgres(PostgresSettingsBuilder),
 }
-impl ConfigInitializer {
+
+
+#[derive(Debug, Clone)]
+/// Project settings file builder to initialize a new settings file
+pub struct SettingsFileInitializer {
+    dir: PathBuf,
+    interactive: bool,
+    database_options: Option<DatabaseConfigOptions>,
+}
+impl SettingsFileInitializer {
     /// Start a new `ConfigInitializer`
-    pub fn new<T: AsRef<Path>>(dir: T) -> Self {
+    fn new<T: AsRef<Path>>(dir: T) -> Self {
         Self {
             dir: dir.as_ref().to_owned(),
-            database_type: None,
             interactive: true,
-            database_name: None,
-            migration_location: "migrations".into(),
+            database_options: None,
         }
     }
 
-    /// Specify the database_type
-    #[deprecated(since="0.15.1", note="Method moved to `ConfigInitializer::database_type`")]
-    pub fn for_database(mut self, db_kind: DbKind) -> Self {
-        self.database_type = Some(db_kind);
-        self
-    }
-
-    /// Specify the database_type
-    pub fn database_type(mut self, db_kind: DbKind) -> Self {
-        self.database_type = Some(db_kind);
-        self
-    }
-
     /// Set interactive prompts, default is `true`
-    pub fn interactive(mut self, b: bool) -> Self {
+    pub fn interactive(&mut self, b: bool) -> &mut Self {
         self.interactive = b;
+        self
+    }
+
+    /// Specify Sqlite database options
+    ///
+    /// ## Example:
+    ///
+    /// ```rust,no_run
+    /// # extern crate migrant_lib;
+    /// # use std::env;
+    /// use migrant_lib::Config;
+    /// use migrant_lib::config::SqliteSettingsBuilder;
+    /// # fn main() { run().unwrap() }
+    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// Config::init_in(env::current_dir()?)
+    ///     .with_sqlite_options(
+    ///         SqliteSettingsBuilder::empty()
+    ///             .database_path("/abs/path/to/my.db")?)
+    ///     .initialize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_sqlite_options(&mut self, options: &SqliteSettingsBuilder) -> &mut Self {
+        self.database_options = Some(DatabaseConfigOptions::Sqlite(options.clone()));
+        self
+    }
+
+    /// Specify Postgres database options
+    ///
+    /// ## Example:
+    ///
+    /// ```rust,no_run
+    /// # extern crate migrant_lib;
+    /// # use std::env;
+    /// use migrant_lib::Config;
+    /// use migrant_lib::config::PostgresSettingsBuilder;
+    /// # fn main() { run().unwrap() }
+    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// Config::init_in(env::current_dir()?)
+    ///     .with_postgres_options(
+    ///         PostgresSettingsBuilder::empty()
+    ///             .database_name("my_db")
+    ///             .database_user("me")
+    ///             .database_port(4444))
+    ///     .initialize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_postgres_options(&mut self, options: &PostgresSettingsBuilder) -> &mut Self {
+        self.database_options = Some(DatabaseConfigOptions::Postgres(options.clone()));
         self
     }
 
@@ -84,34 +124,24 @@ impl ConfigInitializer {
         Ok(path)
     }
 
-    /// Specify database name to pre-populate config file with
-    pub fn database_name(mut self, name: &str) -> Self {
-        self.database_name = Some(name.to_string());
-        self
-    }
-
-    /// Specify migration file directory
-    pub fn migration_location<T: AsRef<Path>>(mut self, p: T) -> Result<Self> {
-        let p = p.as_ref();
-        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
-        self.migration_location = s.to_owned();
-        Ok(self)
-    }
-
     /// Generate a template config file using provided parameters or prompting the user.
     /// If running interactively, the file will be opened for editing and `Config::setup`
     /// will be run automatically.
-    pub fn initialize(self) -> Result<()> {
+    pub fn initialize(&self) -> Result<()> {
         let config_path = self.dir.join(CONFIG_FILE);
         let config_path = if !self.interactive {
             config_path
         } else {
-            ConfigInitializer::confirm_new_config_location(&config_path)
+            Self::confirm_new_config_location(&config_path)
                 .map_err(|e| format_err!(ErrorKind::Config, "unable to create a `{}` config -> {}", CONFIG_FILE, e))?
         };
 
-        let db_kind = if let Some(db_kind) = self.database_type {
-            db_kind
+        let (db_kind, db_options) = if let Some(ref options) = self.database_options {
+            let kind = match options {
+                &DatabaseConfigOptions::Sqlite(_) => DbKind::Sqlite,
+                &DatabaseConfigOptions::Postgres(_) => DbKind::Postgres,
+            };
+            (kind, options.clone())
         } else {
             if !self.interactive {
                 bail_fmt!(ErrorKind::Config, "database type must be specified if running non-interactively")
@@ -124,22 +154,46 @@ impl ConfigInitializer {
                     Err(_) => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", db_kind),
                 }
             };
-            db_kind
+            let options = match db_kind {
+                DbKind::Sqlite => {
+                    let mut options = SqliteSettingsBuilder::empty();
+                    options.migration_location("migrations")?;
+                    DatabaseConfigOptions::Sqlite(options)
+                }
+                DbKind::Postgres => {
+                    let mut options = PostgresSettingsBuilder::empty();
+                    options.migration_location("migrations")?;
+                    DatabaseConfigOptions::Postgres(options)
+                }
+            };
+            (db_kind, options)
         };
 
         println!("\n ** Writing {} config template to {:?}", db_kind, config_path);
-        match db_kind {
-            DbKind::Postgres => {
-                let content = PG_CONFIG_TEMPLATE
-                    .replace("__DB_NAME__", &self.database_name.unwrap_or_else(|| String::new()))
-                    .replace("__MIG_LOC__", &self.migration_location);
+        match db_options {
+            DatabaseConfigOptions::Postgres(ref opts) => {
+                let mut content = PG_CONFIG_TEMPLATE
+                    .replace("__DB_NAME__", &opts.database_name.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_USER__", &opts.database_user.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_PASS__", &opts.database_password.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_HOST__", &opts.database_host.as_ref().cloned().unwrap_or_else(|| String::from("localhost")))
+                    .replace("__DB_PORT__", &opts.database_port.as_ref().cloned().unwrap_or_else(|| String::from("5432")))
+                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| String::from("migrations")));
+                if let Some(ref params) = opts.database_params {
+                    for (k, v) in params.iter() {
+                        content.push_str(&format!("{} = {:?}\n", k, v));
+                    }
+                } else {
+                    content.push('\n');
+                }
+                content.push('\n');
                 write_to_path(&config_path, content.as_bytes())?;
             }
-            DbKind::Sqlite => {
+            DatabaseConfigOptions::Sqlite(ref opts) => {
                 let content = SQLITE_CONFIG_TEMPLATE
                     .replace("__CONFIG_DIR__", config_path.parent().unwrap().to_str().unwrap())
-                    .replace("__DB_PATH__", &self.database_name.unwrap_or_else(|| String::new()))
-                    .replace("__MIG_LOC__", &self.migration_location);
+                    .replace("__DB_PATH__", &opts.database_path.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| String::from("migrations")));
                 write_to_path(&config_path, content.as_bytes())?;
             }
         };
@@ -172,10 +226,14 @@ pub struct SqliteSettingsBuilder {
     migration_location: Option<String>,
 }
 impl SqliteSettingsBuilder {
+    /// Initialize an empty builder
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
     /// Set the path to look for a database file.
     pub fn database_path<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
-        if ! p.is_absolute() { bail_fmt!(ErrorKind::Config, "Explicit settings database path must be absolute: {:?}", p) }
         let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
         self.database_path = Some(s.to_owned());
         Ok(self)
@@ -191,12 +249,17 @@ impl SqliteSettingsBuilder {
 
     /// Build a `Settings` object
     pub fn build(&self) -> Result<Settings> {
+        let db_path = self.database_path
+            .as_ref()
+            .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_path` parameter"))?
+            .clone();
+        {
+            let p = Path::new(&db_path);
+            if ! p.is_absolute() { bail_fmt!(ErrorKind::Config, "Explicit settings database path must be absolute: {:?}", p) }
+        }
         let inner = ConfigurableSettings::Sqlite(SqliteSettings {
             database_type: "sqlite".into(),
-            database_path: self.database_path
-                .as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_path` parameter"))?
-                .clone(),
+            database_path: db_path,
             migration_location: self.migration_location.clone(),
         });
         Ok(Settings { inner })
@@ -212,10 +275,15 @@ pub struct PostgresSettingsBuilder {
     database_password: Option<String>,
     database_host: Option<String>,
     database_port: Option<String>,
-    database_params: Option<HashMap<String, String>>,
+    database_params: Option<BTreeMap<String, String>>,
     migration_location: Option<String>,
 }
 impl PostgresSettingsBuilder {
+    /// Initialize an empty builder
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
     /// Set the database name.
     pub fn database_name(&mut self, name: &str) -> &mut Self {
         self.database_name = Some(name.into());
@@ -247,7 +315,7 @@ impl PostgresSettingsBuilder {
     }
     /// Set a collection of database connection parameters.
     pub fn database_params(&mut self, params: &[(&str, &str)]) -> &mut Self {
-        let mut map = HashMap::new();
+        let mut map = BTreeMap::new();
         for &(k, v) in params.iter() {
             map.insert(k.to_string(), v.to_string());
         }
@@ -291,7 +359,7 @@ pub(crate) struct PostgresSettings {
     pub(crate) database_password: String,
     pub(crate) database_host: Option<String>,
     pub(crate) database_port: Option<String>,
-    pub(crate) database_params: Option<HashMap<String, String>>,
+    pub(crate) database_params: Option<BTreeMap<String, String>>,
     pub(crate) migration_location: Option<String>,
 }
 impl PostgresSettings {
@@ -642,13 +710,13 @@ impl Config {
         Ok(())
     }
 
-    /// Start a config initializer in the given directory
-    pub fn init_in<T: AsRef<Path>>(dir: T) -> ConfigInitializer {
-        ConfigInitializer::new(dir.as_ref())
+    /// Initialize a new settings file in the given directory
+    pub fn init_in<T: AsRef<Path>>(dir: T) -> SettingsFileInitializer {
+        SettingsFileInitializer::new(dir.as_ref())
     }
 
-    /// - Confirm the database can be accessed
-    /// - Setup the database migrations table if it doesn't exist yet
+    /// Confirm the database can be accessed and setup the database
+    /// migrations table if it doesn't already exist
     pub fn setup(&self) -> Result<bool> {
         debug!(" ** Confirming database credentials...");
         match &self.settings.inner {
@@ -665,12 +733,12 @@ impl Config {
                 let conn_str = s.connect_string()?;
                 let can_connect = drivers::pg::can_connect(&conn_str)?;
                 if !can_connect {
-                    debug!(" ERROR: Unable to connect to {}", conn_str);
-                    debug!("        Please initialize your database and user and then run `setup`");
-                    debug!("\n  ex) sudo -u postgres createdb {}", s.database_name);
-                    debug!("      sudo -u postgres createuser {}", s.database_user);
-                    debug!("      sudo -u postgres psql -c \"alter user {} with password '****'\"", s.database_user);
-                    debug!("");
+                    error!(" ERROR: Unable to connect to {}", conn_str);
+                    error!("        Please initialize your database and user and then run `setup`");
+                    error!("\n  ex) sudo -u postgres createdb {}", s.database_name);
+                    error!("      sudo -u postgres createuser {}", s.database_user);
+                    error!("      sudo -u postgres psql -c \"alter user {} with password '****'\"", s.database_user);
+                    error!("");
                     bail_fmt!(ErrorKind::Config,
                               "Cannot connect to postgres database with connection string: {:?}. \
                                Do the database & user exist?",

@@ -1,14 +1,18 @@
 /*!
-Migrant can be used as a library so you can embed the management of migrations
-into your binary and don't need to use a secondary tool in production environments.
+The functionality of the Migrant CLI tool can be used as a library so you can embed general
+database & migration management in your binary and don't need to use a secondary tool
+in production environments.
 
-The majority of `migrant/src/main.rs` could be copied, or just select functionality.
+Select functionality can be copied from https://github.com/jaemk/migrant/blob/master/src/main.rs
+
 Run with: `cargo run --example migrant_cli_compatible`
 */
 extern crate migrant_lib;
 
 use std::env;
 use migrant_lib::Config;
+use migrant_lib::config::SqliteSettingsBuilder;
+// use migrant_lib::config::PostgresSettingsBuilder;
 
 
 fn run() -> Result<(), migrant_lib::Error> {
@@ -16,7 +20,19 @@ fn run() -> Result<(), migrant_lib::Error> {
     let config = match migrant_lib::search_for_settings_file(&dir) {
         None => {
             Config::init_in(&dir)
-                .migration_location("migrations/managed")?
+                .with_sqlite_options(
+                    SqliteSettingsBuilder::empty()
+                        .database_path("db/db.db")?
+                        .migration_location("migrations/managed")?)
+                // .with_postgres_options(
+                //     PostgresSettingsBuilder::empty()
+                //         .database_name("testing")
+                //         .database_user("testing")
+                //         .database_password("testing")
+                //         .database_host("localhost")
+                //         .database_port(5432)
+                //         .database_params(&[("port", "5432"), ("sslmode", "disable")])
+                //         .migration_location("migrations/managed")?)
                 .initialize()?;
             println!("\nSettings file and migrations table initialized. \
                       Please run again to apply migrations.");
@@ -46,6 +62,6 @@ fn run() -> Result<(), migrant_lib::Error> {
 
 pub fn main() {
     if let Err(e) = run() {
-        println!("[ERROR] {:?}", e);
+        println!("[ERROR] {}", e);
     }
 }
