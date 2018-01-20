@@ -16,7 +16,9 @@ use errors::*;
 
 /// Define a migration that uses SQL statements saved in files.
 ///
-/// Files defined in this migration must be present at run-time
+/// *Note:* Files defined in this migration must be present at run-time.
+/// File paths can be absolute or relative. Relative file paths are relative
+/// to the directory from which the program is run.
 #[derive(Clone, Debug)]
 pub struct FileMigration {
     pub tag: String,
@@ -47,7 +49,11 @@ impl FileMigration {
         Ok(())
     }
 
-    /// Define the file to use for running `up` migrations
+    /// Define the file to use for running `up` migrations.
+    ///
+    /// *Note:* Files defined in this migration must be present at run-time.
+    /// File paths can be absolute or relative. Relative file paths are relative
+    /// to the directory from which the program is run.
     pub fn up<T: AsRef<Path>>(&mut self, up_file: T) -> Result<&mut Self> {
         let path = up_file.as_ref();
         Self::check_path(path)?;
@@ -55,7 +61,11 @@ impl FileMigration {
         Ok(self)
     }
 
-    /// Define the file to use for running `down` migrations
+    /// Define the file to use for running `down` migrations.
+    ///
+    /// *Note:* Files defined in this migration must be present at run-time.
+    /// File paths can be absolute or relative. Relative file paths are relative
+    /// to the directory from which the program is run.
     pub fn down<T: AsRef<Path>>(&mut self, down_file: T) -> Result<&mut Self> {
         let path = down_file.as_ref();
         Self::check_path(path)?;
