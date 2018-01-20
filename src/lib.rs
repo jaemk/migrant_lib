@@ -4,6 +4,8 @@
 [![docs](https://docs.rs/migrant_lib/badge.svg)](https://docs.rs/migrant_lib)
 
 > Embeddable migration management
+>
+> Also see [`migrant`](https://github.com/jaemk/migrant) CLI
 
 `migrant_lib` allows defining and embedding management of migrations in your compiled application.
 
