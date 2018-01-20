@@ -8,6 +8,16 @@
 ### Removed
 
 
+## [0.16.1]
+### Added
+- Add top level reference to the migrant CLI tool in the readme
+- Add a CONTRIBUTING.md
+
+### Changed
+- Exclude `Migrant.toml` testing settings file and `.travis.yml` in Cargo.toml
+
+### Removed
+
 ## [0.16.0]
 ### Added
 - Add ability to configure database specific options when initializing a
