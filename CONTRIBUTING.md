@@ -27,3 +27,10 @@ The `test.sh` script exists to handle setup and tear-down of testing databases b
 as well as ensuring the tests are run with and without the various feature flags.
 Note, some commands in this script will likely ask for your password when setting up managed databases, e.g. `postgres`.
 
+
+## Submitting Changes
+
+Pull Requests should be made against master.
+Travis CI will run the test suite on all PRs.
+Remember to update the changelog!
+
