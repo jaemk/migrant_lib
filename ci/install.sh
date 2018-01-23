@@ -23,6 +23,21 @@ main() {
            --git japaric/cross \
            --tag $tag \
            --target $target
+
+    MYSQLSH_DL_LINK=""
+    if [ $TRAVIS_OS_NAME = linux ]; then
+        MYSQLSH_DL_LINK="https://dev.mysql.com/get/Downloads/MySQL-Shell/mysql-shell-1.0.11-linux-glibc2.12-x86-64bit.tar.gz"
+        if [[ $TARGET == i686* ]]; then
+            MYSQLSH_DL_LINK="https://dev.mysql.com/get/Downloads/MySQL-Shell/mysql-shell-1.0.11-linux-glibc2.12-x86-32bit.tar.gz"
+        fi
+    else
+        MYSQLSH_DL_LINK="https://dev.mysql.com/get/Downloads/MySQL-Shell/mysql-shell-1.0.11-macos10.13-x86-64bit.tar.gz"
+    fi
+    curl -LO $MYSQLSH_DL_LINK
+    tar -xf mysql-shell*.tar.gz
+    rm -f mysql-shell*.tar.gz
+    mkdir -p /usr/local/bin
+    sudo mv mysql-shell*bit/bin/mysqlsh /usr/local/bin/
 }
 
 main
