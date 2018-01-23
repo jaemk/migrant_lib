@@ -10,6 +10,17 @@
 
 `migrant_lib` allows defining and embedding management of migrations in your compiled application.
 
+
+**Available Features:**
+
+- `postgresql` => Enable postgres connectivity
+- `sqlite` => Enable sqlite connectivity
+- `with-mysql` => Enable mysql connectivity
+
+Note: No features are enabled by default
+
+----
+
 - Migrations can be defined as files or functions.
 - File migrations can be either read from files at runtime or embedded in your executable at compile time.
 - Migration tags must all be unique and may only contain the characters `[a-z0-9-]`.
@@ -17,7 +28,7 @@
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
-  enabled (`postgresql` / `sqlite`).
+  enabled (`postgresql` / `sqlite` / `with-mysql`).
 - When database features are enabled, the entirety of the database-specific connection library will
   be re-exported in the `types` module.
 
