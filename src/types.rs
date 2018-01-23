@@ -12,3 +12,6 @@ pub use postgres::*;
 #[cfg(feature="sqlite")]
 pub use rusqlite::*;
 
+#[cfg(feature="with-mysql")]
+pub use mysql::*;
+
