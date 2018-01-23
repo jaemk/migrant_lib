@@ -8,11 +8,15 @@ use postgres;
 #[cfg(feature="sqlite")]
 use rusqlite;
 
+#[cfg(feature="with-mysql")]
+use mysql;
+
 
 #[allow(dead_code)]
 pub mod markers {
     pub struct PostgresqlFeatureRequired;
     pub struct SqliteFeatureRequired;
+    pub struct WithMySQLFeatureRequired;
 }
 #[allow(unused_imports)]
 use self::markers::*;
@@ -39,6 +43,19 @@ impl<'a> DbConn<'a> {
     pub fn pg_connection(&self) -> Result<postgres::Connection> {
         let conn_str = self.config.connect_string()?;
         Ok(postgres::Connection::connect(conn_str, postgres::TlsMode::None)?)
+    }
+
+    /// Generate a `mysql::Conn`, `with-mysql` feature required
+    #[cfg(not(feature="with-mysql"))]
+    pub fn mysql_connection(&self) -> Result<WithMySQLFeatureRequired> {
+        unimplemented!()
+    }
+
+    /// Generate a `mysql::Conn`, `with-mysql` feature required
+    #[cfg(feature="with-mysql")]
+    pub fn mysql_connection(&self) -> Result<mysql::Conn> {
+        let conn_str = self.config.connect_string()?;
+        Ok(mysql::Conn::new(conn_str)?)
     }
 
     /// Generate a `rusqlite::Connection`, `sqlite` feature required

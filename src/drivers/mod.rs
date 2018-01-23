@@ -1,12 +1,17 @@
 use super::errors::*;
+
+#[cfg(not(feature="with-mysql"))]
 use connection;
 
 mod sql {
     pub static CREATE_TABLE: &'static str = "create table __migrant_migrations(tag text unique);";
+    pub static MYSQL_CREATE_TABLE: &'static str = "create table __migrant_migrations(tag varchar(512) unique);";
+
     pub static GET_MIGRATIONS: &'static str = "select tag from __migrant_migrations;";
 
     pub static SQLITE_MIGRATION_TABLE_EXISTS: &'static str = "select exists(select 1 from sqlite_master where type = 'table' and name = '__migrant_migrations');";
     pub static PG_MIGRATION_TABLE_EXISTS: &'static str = "select exists(select 1 from pg_tables where tablename = '__migrant_migrations');";
+    pub static MYSQL_MIGRATION_TABLE_EXISTS: &'static str = "select exists(select 1 from information_schema.tables where table_name='__migrant_migrations') as tag;";
 
     // Some of these queries need to do unsafe search/replace of `__VAL__` -> tag
     // All tags are validated when created and again when loaded from the database migration table,
@@ -27,8 +32,17 @@ mod sql {
         pub static PG_ADD_MIGRATION: &'static str = "prepare stmt as insert into __migrant_migrations (tag) values ($1); execute stmt('__VAL__'); deallocate stmt;";
         pub static PG_DELETE_MIGRATION: &'static str = "prepare stmt as delete from __migrant_migrations where tag = $1; execute stmt('__VAL__'); deallocate stmt;";
     }
+
+    #[cfg(not(feature="with-mysql"))]
+    pub use self::q_mysql::*;
+    #[cfg(not(feature="with-mysql"))]
+    mod q_mysql {
+        pub static MYSQL_ADD_MIGRATION: &'static str = "prepare stmt from 'insert into __migrant_migrations (tag) values (?)'; set @a = '__VAL__'; execute stmt using @a; deallocate prepare stmt;";
+        pub static MYSQL_DELETE_MIGRATION: &'static str = "prepare stmt from 'delete from __migrant_migrations where tag = ?'; set @a = '__VAL__'; execute stmt using @a; deallocate prepare stmt;";
+    }
 }
 
 pub mod pg;
 pub mod sqlite;
+pub mod mysql;
 

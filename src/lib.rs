@@ -73,6 +73,7 @@ example for a working sample.
 #[macro_use] extern crate lazy_static;
 #[macro_use] extern crate serde_derive;
 extern crate serde;
+extern crate serde_json;
 extern crate toml;
 extern crate chrono;
 extern crate walkdir;
@@ -85,6 +86,9 @@ extern crate postgres;
 
 #[cfg(feature="sqlite")]
 extern crate rusqlite;
+
+#[cfg(feature="with-mysql")]
+extern crate mysql;
 
 use std::collections::HashMap;
 use std::process::Command;
@@ -157,6 +161,28 @@ migration_location = "__MIG_LOC__"  # default "migrations"
 [database_params]
 "#;
 
+static MYSQL_CONFIG_TEMPLATE: &'static str = r#"
+# Required, do not edit
+database_type = "mysql"
+
+# Required database info
+database_name = "__DB_NAME__"
+database_user = "__DB_USER__"
+database_password = "__DB_PASS__"
+
+# Configurable database info
+database_host = "__DB_HOST__"         # default "localhost"
+database_port = "__DB_PORT__"              # default "3306"
+migration_location = "__MIG_LOC__"  # default "migrations"
+
+# Extra database connection parameters
+# with the format:
+# [database_params]
+# key = "value"
+[database_params]
+"#;
+
+
 
 lazy_static! {
     // For verifying new `tag` names
@@ -172,6 +198,7 @@ lazy_static! {
 pub enum DbKind {
     Sqlite,
     Postgres,
+    MySql,
 }
 impl std::str::FromStr for DbKind {
     type Err = Error;
@@ -179,6 +206,7 @@ impl std::str::FromStr for DbKind {
         Ok(match s {
             "sqlite" => DbKind::Sqlite,
             "postgres" => DbKind::Postgres,
+            "mysql" => DbKind::MySql,
             _ => bail_fmt!(ErrorKind::InvalidDbKind, "Invalid Database Kind: {}", s),
         })
     }
@@ -191,6 +219,9 @@ impl fmt::Display for DbKind {
             }
             DbKind::Sqlite => {
                 write!(f, "sqlite")
+            }
+            DbKind::MySql => {
+                write!(f, "mysql")
             }
         }
     }
@@ -587,6 +618,17 @@ pub fn shell(config: &Config) -> Result<()> {
                     .spawn()
                     .chain_err(|| format_err!(ErrorKind::ShellCommand,
                                               "Error running command `psql`. Is it available on your PATH?"))?
+                    .wait()?;
+        }
+        DbKind::MySql => {
+            let conn_str = config.connect_string()?;
+            Command::new("mysqlsh")
+                    .arg("--sql")
+                    .arg("--uri")
+                    .arg(conn_str)
+                    .spawn()
+                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
+                                              "Error running command `mysqhlsh`. Is it available on your PATH?"))?
                     .wait()?;
         }
     })

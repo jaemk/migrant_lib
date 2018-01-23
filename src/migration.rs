@@ -91,6 +91,10 @@ impl Migratable for FileMigration {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration(&conn_str, up)?;
                 }
+                DbKind::MySql => {
+                    let conn_str = config.connect_string()?;
+                    drivers::mysql::run_migration(&conn_str, up)?;
+                }
             }
         } else {
             print_flush!("(empty) ...");
@@ -107,6 +111,10 @@ impl Migratable for FileMigration {
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration(&conn_str, down)?;
+                }
+                DbKind::MySql => {
+                    let conn_str = config.connect_string()?;
+                    drivers::mysql::run_migration(&conn_str, down)?;
                 }
             }
         } else {
@@ -195,7 +203,7 @@ impl EmbeddedMigration {
 impl Migratable for EmbeddedMigration {
     fn apply_up(&self, _db_kind: DbKind, _config: &Config) -> std::result::Result<(), Box<std::error::Error>> {
         if let Some(ref _up) = self.up {
-            #[cfg(any(feature="postgresql", feature="sqlite"))]
+            #[cfg(any(feature="postgresql", feature="sqlite", feature="with-mysql"))]
             match _db_kind {
                 DbKind::Sqlite => {
                     let db_path = _config.database_path()?;
@@ -205,8 +213,12 @@ impl Migratable for EmbeddedMigration {
                     let conn_str = _config.connect_string()?;
                     drivers::pg::run_migration_str(&conn_str, _up)?;
                 }
+                DbKind::MySql => {
+                    let conn_str = _config.connect_string()?;
+                    drivers::mysql::run_migration_str(&conn_str, _up)?;
+                }
             }
-            #[cfg(not(any(feature="postgresql", feature="sqlite")))]
+            #[cfg(not(any(feature="postgresql", feature="sqlite", feature="with-mysql")))]
             panic!("** Migrant ERROR: Database specific feature required to run embedded-file migration **");
         } else {
             print_flush!("(empty) ...");
@@ -223,6 +235,10 @@ impl Migratable for EmbeddedMigration {
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration_str(&conn_str, down)?;
+                }
+                DbKind::MySql => {
+                    let conn_str = config.connect_string()?;
+                    drivers::mysql::run_migration_str(&conn_str, down)?;
                 }
             }
         } else {

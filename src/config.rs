@@ -16,7 +16,7 @@ use drivers;
 use {
     Migratable, encode, prompt, open_file_in_fg, write_to_path, invalid_tag, DbKind,
     FULL_TAG_RE, DT_FORMAT, CONFIG_FILE,
-    PG_CONFIG_TEMPLATE, SQLITE_CONFIG_TEMPLATE,
+    PG_CONFIG_TEMPLATE, SQLITE_CONFIG_TEMPLATE, MYSQL_CONFIG_TEMPLATE,
 };
 use errors::*;
 
@@ -25,6 +25,7 @@ use errors::*;
 enum DatabaseConfigOptions {
     Sqlite(SqliteSettingsBuilder),
     Postgres(PostgresSettingsBuilder),
+    MySql(MySqlSettingsBuilder),
 }
 
 
@@ -140,6 +141,7 @@ impl SettingsFileInitializer {
             let kind = match options {
                 &DatabaseConfigOptions::Sqlite(_) => DbKind::Sqlite,
                 &DatabaseConfigOptions::Postgres(_) => DbKind::Postgres,
+                &DatabaseConfigOptions::MySql(_) => DbKind::MySql,
             };
             (kind, options.clone())
         } else {
@@ -148,7 +150,7 @@ impl SettingsFileInitializer {
             }
             println!("\n ** Gathering database information...");
             let db_kind = {
-                let db_kind = prompt(" database type (sqlite|postgres) >> ")?;
+                let db_kind = prompt(" database type (sqlite|postgres|mysql) >> ")?;
                 match db_kind.parse::<DbKind>() {
                     Ok(kind) => kind,
                     Err(_) => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", db_kind),
@@ -165,6 +167,11 @@ impl SettingsFileInitializer {
                     options.migration_location("migrations")?;
                     DatabaseConfigOptions::Postgres(options)
                 }
+                DbKind::MySql => {
+                    let mut options = MySqlSettingsBuilder::empty();
+                    options.migration_location("migrations")?;
+                    DatabaseConfigOptions::MySql(options)
+                }
             };
             (db_kind, options)
         };
@@ -178,6 +185,24 @@ impl SettingsFileInitializer {
                     .replace("__DB_PASS__", &opts.database_password.as_ref().cloned().unwrap_or_else(|| String::new()))
                     .replace("__DB_HOST__", &opts.database_host.as_ref().cloned().unwrap_or_else(|| String::from("localhost")))
                     .replace("__DB_PORT__", &opts.database_port.as_ref().cloned().unwrap_or_else(|| String::from("5432")))
+                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| String::from("migrations")));
+                if let Some(ref params) = opts.database_params {
+                    for (k, v) in params.iter() {
+                        content.push_str(&format!("{} = {:?}\n", k, v));
+                    }
+                } else {
+                    content.push('\n');
+                }
+                content.push('\n');
+                write_to_path(&config_path, content.as_bytes())?;
+            }
+            DatabaseConfigOptions::MySql(ref opts) => {
+                let mut content = MYSQL_CONFIG_TEMPLATE
+                    .replace("__DB_NAME__", &opts.database_name.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_USER__", &opts.database_user.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_PASS__", &opts.database_password.as_ref().cloned().unwrap_or_else(|| String::new()))
+                    .replace("__DB_HOST__", &opts.database_host.as_ref().cloned().unwrap_or_else(|| String::from("localhost")))
+                    .replace("__DB_PORT__", &opts.database_port.as_ref().cloned().unwrap_or_else(|| String::from("3306")))
                     .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| String::from("migrations")));
                 if let Some(ref params) = opts.database_params {
                     for (k, v) in params.iter() {
@@ -351,6 +376,90 @@ impl PostgresSettingsBuilder {
 }
 
 
+/// MySQL settings builder
+#[derive(Debug, Clone, Default)]
+pub struct MySqlSettingsBuilder {
+    database_name: Option<String>,
+    database_user: Option<String>,
+    database_password: Option<String>,
+    database_host: Option<String>,
+    database_port: Option<String>,
+    database_params: Option<BTreeMap<String, String>>,
+    migration_location: Option<String>,
+}
+impl MySqlSettingsBuilder {
+    /// Initialize an empty builder
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    /// Set the database name.
+    pub fn database_name(&mut self, name: &str) -> &mut Self {
+        self.database_name = Some(name.into());
+        self
+    }
+
+    /// Set the database user.
+    pub fn database_user(&mut self, user: &str) -> &mut Self {
+        self.database_user = Some(user.into());
+        self
+    }
+
+    /// Set the database password.
+    pub fn database_password(&mut self, pass: &str) -> &mut Self {
+        self.database_password = Some(pass.into());
+        self
+    }
+
+    /// Set the database host.
+    pub fn database_host(&mut self, host: &str) -> &mut Self {
+        self.database_host = Some(host.into());
+        self
+    }
+
+    /// Set the database port.
+    pub fn database_port(&mut self, port: u16) -> &mut Self {
+        self.database_port = Some(port.to_string());
+        self
+    }
+    /// Set a collection of database connection parameters.
+    pub fn database_params(&mut self, params: &[(&str, &str)]) -> &mut Self {
+        let mut map = BTreeMap::new();
+        for &(k, v) in params.iter() {
+            map.insert(k.to_string(), v.to_string());
+        }
+        self.database_params = Some(map);
+        self
+    }
+
+    /// Set directory to look for migration files.
+    pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
+        let p = p.as_ref();
+        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        self.migration_location = Some(s.to_owned());
+        Ok(self)
+    }
+
+    /// Build a `Settings` object
+    pub fn build(&self) -> Result<Settings> {
+        let inner = ConfigurableSettings::MySql(MySqlSettings {
+            database_type: "mysql".into(),
+            database_name: self.database_name.as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_name` parameter"))?.clone(),
+            database_user: self.database_user.as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_user` parameter"))?.clone(),
+            database_password: self.database_password.as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_password` parameter"))?.clone(),
+            database_host: self.database_host.clone(),
+            database_port: self.database_port.clone(),
+            database_params: self.database_params.clone(),
+            migration_location: self.migration_location.clone(),
+        });
+        Ok(Settings { inner })
+    }
+}
+
+
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct PostgresSettings {
     pub(crate) database_type: String,
@@ -401,6 +510,55 @@ impl PostgresSettings {
 
 
 #[derive(Deserialize, Debug, Clone)]
+pub(crate) struct MySqlSettings {
+    pub(crate) database_type: String,
+    pub(crate) database_name: String,
+    pub(crate) database_user: String,
+    pub(crate) database_password: String,
+    pub(crate) database_host: Option<String>,
+    pub(crate) database_port: Option<String>,
+    pub(crate) database_params: Option<BTreeMap<String, String>>,
+    pub(crate) migration_location: Option<String>,
+}
+impl MySqlSettings {
+    pub(crate) fn connect_string(&self) -> Result<String> {
+        let host = self.database_host.clone().unwrap_or_else(|| "localhost".to_string());
+        let host = if host.is_empty() { "localhost".to_string() } else { host };
+        let host = encode(&host);
+
+        let port = self.database_port.clone().unwrap_or_else(|| "3306".to_string());
+        let port = if port.is_empty() { "3306".to_string() } else { port };
+        let port = encode(&port);
+
+        let s = format!("mysql://{user}:{pass}@{host}:{port}/{db_name}",
+                user=encode(&self.database_user),
+                pass=encode(&self.database_password),
+                host=host,
+                port=port,
+                db_name=encode(&self.database_name));
+
+        let mut url = url::Url::parse(&s)?;
+
+        if let Some(ref params) = self.database_params {
+            let mut pairs = vec![];
+            for (k, v) in params.iter() {
+                let k = encode(k);
+                let v = encode(v);
+                pairs.push((k, v));
+            }
+            if !pairs.is_empty() {
+                let mut url = url.query_pairs_mut();
+                for &(ref k, ref v) in &pairs {
+                    url.append_pair(k, v);
+                }
+            }
+        }
+        Ok(url.into_string())
+    }
+}
+
+
+#[derive(Deserialize, Debug, Clone)]
 pub(crate) struct SqliteSettings {
     pub(crate) database_type: String,
     pub(crate) database_path: String,
@@ -412,12 +570,14 @@ pub(crate) struct SqliteSettings {
 pub(crate) enum ConfigurableSettings {
     Postgres(PostgresSettings),
     Sqlite(SqliteSettings),
+    MySql(MySqlSettings),
 }
 impl ConfigurableSettings {
     pub(crate) fn db_kind(&self) -> DbKind {
         match *self {
             ConfigurableSettings::Sqlite(_) => DbKind::Sqlite,
             ConfigurableSettings::Postgres(_) => DbKind::Postgres,
+            ConfigurableSettings::MySql(_) => DbKind::MySql,
         }
     }
 
@@ -425,6 +585,7 @@ impl ConfigurableSettings {
         match *self {
             ConfigurableSettings::Sqlite(ref s) => s.migration_location.as_ref().map(PathBuf::from),
             ConfigurableSettings::Postgres(ref s) => s.migration_location.as_ref().map(PathBuf::from),
+            ConfigurableSettings::MySql(ref s) => s.migration_location.as_ref().map(PathBuf::from),
         }
     }
 
@@ -434,12 +595,16 @@ impl ConfigurableSettings {
             ConfigurableSettings::Postgres(ref s) => {
                 bail_fmt!(ErrorKind::Config, "Cannot generate database_path for database-type: {}", s.database_type)
             }
+            ConfigurableSettings::MySql(ref s) => {
+                bail_fmt!(ErrorKind::Config, "Cannot generate database_path for database-type: {}", s.database_type)
+            }
         }
     }
 
     pub(crate) fn connect_string(&self) -> Result<String> {
         match *self {
             ConfigurableSettings::Postgres(ref s) => s.connect_string(),
+            ConfigurableSettings::MySql(ref s) => s.connect_string(),
             ConfigurableSettings::Sqlite(ref s) => {
                 bail_fmt!(ErrorKind::Config, "Cannot generate connect-string for database-type: {}", s.database_type)
             }
@@ -662,8 +827,9 @@ impl Config {
         }
 
         let applied = match self.settings.inner.db_kind() {
-            DbKind::Sqlite    => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
-            DbKind::Postgres  => drivers::pg::select_migrations(&self.connect_string()?)?,
+            DbKind::Sqlite      => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
+            DbKind::Postgres    => drivers::pg::select_migrations(&self.connect_string()?)?,
+            DbKind::MySql       => drivers::mysql::select_migrations(&self.connect_string()?)?,
         };
         let mut tags = vec![];
         for tag in applied.into_iter() {
@@ -689,6 +855,7 @@ impl Config {
         match self.settings.inner.db_kind() {
             DbKind::Sqlite      => drivers::sqlite::migration_table_exists(&self.database_path_string()?),
             DbKind::Postgres    => drivers::pg::migration_table_exists(&self.connect_string()?),
+            DbKind::MySql       => drivers::mysql::migration_table_exists(&self.connect_string()?),
         }
     }
 
@@ -697,6 +864,7 @@ impl Config {
         match self.settings.inner.db_kind() {
             DbKind::Sqlite      => drivers::sqlite::insert_migration_tag(&self.database_path_string()?, tag)?,
             DbKind::Postgres    => drivers::pg::insert_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::MySql       => drivers::mysql::insert_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
     }
@@ -706,6 +874,7 @@ impl Config {
         match self.settings.inner.db_kind() {
             DbKind::Sqlite      => drivers::sqlite::remove_migration_tag(&self.database_path_string()?, tag)?,
             DbKind::Postgres    => drivers::pg::remove_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::MySql       => drivers::mysql::remove_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
     }
@@ -747,6 +916,28 @@ impl Config {
                     debug!("    - Connection confirmed ✓");
                 }
             }
+            &ConfigurableSettings::MySql(ref s) => {
+                let conn_str = s.connect_string()?;
+                let can_connect = drivers::mysql::can_connect(&conn_str)?;
+                if !can_connect {
+                    let localhost = String::from("localhost");
+                    error!(" ERROR: Unable to connect to {}", conn_str);
+                    error!("        Please initialize your database and user and then run `setup`");
+                    error!("\n  ex) mysql -u root -p -e \"create database {};\"", s.database_name);
+                    error!("      mysql -u root -p -e \"create user '{}'@'{}' identified by '*****';\"",
+                           s.database_user, s.database_host.as_ref().unwrap_or(&localhost));
+                    error!("      mysql -u root -p e \"grant all privileges on {}.* to '{}'@'{}';\"",
+                           s.database_name, s.database_user, s.database_host.as_ref().unwrap_or(&localhost));
+                    error!("      mysql -u root -p e \"flush privileges;\"");
+                    error!("");
+                    bail_fmt!(ErrorKind::Config,
+                              "Cannot connect to mysql database with connection string: {:?}. \
+                               Do the database & user exist?",
+                              conn_str);
+                } else {
+                    debug!("    - Connection confirmed ✓");
+                }
+            }
         }
 
         debug!("\n ** Setting up migrations table");
@@ -757,6 +948,10 @@ impl Config {
             &ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
                 drivers::pg::migration_setup(&conn_str)?
+            }
+            &ConfigurableSettings::MySql(ref s) => {
+                let conn_str = s.connect_string()?;
+                drivers::mysql::migration_setup(&conn_str)?
             }
         };
 

@@ -14,7 +14,7 @@ main() {
 
     #cross test --target $TARGET
     if [ $TRAVIS_OS_NAME = linux ]; then
-        ./test.sh
+        ./test.sh --no-pass
     fi
 }
 

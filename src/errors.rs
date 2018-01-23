@@ -6,12 +6,16 @@ use std;
 use toml;
 use url;
 use chrono;
+use serde_json;
 
 #[cfg(feature="sqlite")]
 use rusqlite;
 
 #[cfg(feature="postgresql")]
 use postgres;
+
+#[cfg(feature="with-mysql")]
+use mysql;
 
 
 error_chain! {
@@ -23,8 +27,10 @@ error_chain! {
         TomlSe(toml::ser::Error);
         UrlParse(url::ParseError);
         ChronoParse(chrono::ParseError);
+        Json(serde_json::Error);
         Sqlite(rusqlite::Error) #[cfg(feature="sqlite")];
         Postgres(postgres::Error) #[cfg(feature="postgresql")];
+        MySql(mysql::Error) #[cfg(feature="with-mysql")];
     }
     errors {
         Config(s: String) {
