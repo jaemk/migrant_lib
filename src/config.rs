@@ -369,7 +369,7 @@ impl PostgresSettings {
         let host = encode(&host);
 
         let port = self.database_port.clone().unwrap_or_else(|| "5432".to_string());
-        let port = if host.is_empty() { "5432".to_string() } else { port };
+        let port = if port.is_empty() { "5432".to_string() } else { port };
         let port = encode(&port);
 
         let s = format!("postgres://{user}:{pass}@{host}:{port}/{db_name}",
