@@ -8,6 +8,15 @@
 ### Removed
 
 
+## [0.16.2]
+### Added
+
+### Changed
+- Fix postgres default port bug
+
+### Removed
+
+
 ## [0.16.1]
 ### Added
 - Add top level reference to the migrant CLI tool in the readme
@@ -17,6 +26,7 @@
 - Exclude `Migrant.toml` testing settings file and `.travis.yml` in Cargo.toml
 
 ### Removed
+
 
 ## [0.16.0]
 ### Added
