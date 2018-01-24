@@ -249,7 +249,7 @@ impl SettingsFileInitializer {
             }
         };
 
-        println!("\n ** Please update `{}` with your database credentials and run `setup`", CONFIG_FILE);
+        println!("\n ** Please update `{}` with your database credentials and run `setup`\n", CONFIG_FILE);
 
         if self.interactive {
             let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());

@@ -1,6 +1,6 @@
 use super::errors::*;
 
-#[cfg(not(feature="with-mysql"))]
+#[cfg(any(not(feature="with-mysql"), not(feature="postgresql"), not(feature="sqlite")))]
 use connection;
 
 mod sql {
