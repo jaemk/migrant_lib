@@ -39,3 +39,5 @@ default = []
 sqlite = ["rusqlite"]
 postgresql = ["postgres"]
 with-mysql = ["mysql"]
+all = ["sqlite", "postgresql", "with-mysql"]
+

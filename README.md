@@ -13,9 +13,13 @@
 
 **Available Features:**
 
-- `postgresql` => Enable postgres connectivity
-- `sqlite` => Enable sqlite connectivity
-- `with-mysql` => Enable mysql connectivity
+| Feature      |    Backend                   |
+|--------------|------------------------------|
+| `postgresql` | Enable postgres connectivity |
+| `sqlite`     | Enable sqlite connectivity   |
+| `with-mysql` | Enable mysql connectivity    |
+| `all`        | Enable all backends          |
+
 
 Note: No features are enabled by default
 
