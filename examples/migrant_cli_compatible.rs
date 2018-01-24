@@ -13,6 +13,7 @@ use std::env;
 use migrant_lib::Config;
 use migrant_lib::config::SqliteSettingsBuilder;
 // use migrant_lib::config::PostgresSettingsBuilder;
+// use migrant_lib::config::MySqlSettingsBuilder;
 
 
 fn run() -> Result<(), migrant_lib::Error> {
@@ -32,6 +33,15 @@ fn run() -> Result<(), migrant_lib::Error> {
                 //         .database_host("localhost")
                 //         .database_port(5432)
                 //         .database_params(&[("port", "5432"), ("sslmode", "disable")])
+                //         .migration_location("migrations/managed")?)
+                // .with_mysql_options(
+                //     MySqlSettingsBuilder::empty()
+                //         .database_name("testing")
+                //         .database_user("testing")
+                //         .database_password("pass")
+                //         .database_host("localhost")
+                //         .database_port(3306)
+                //         .database_params(&[("prefer_socket", "true")])
                 //         .migration_location("migrations/managed")?)
                 .initialize()?;
             println!("\nSettings file and migrations table initialized. \

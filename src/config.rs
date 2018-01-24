@@ -102,6 +102,32 @@ impl SettingsFileInitializer {
         self
     }
 
+    /// Specify MySQL database options
+    ///
+    /// ## Example:
+    ///
+    /// ```rust,no_run
+    /// # extern crate migrant_lib;
+    /// # use std::env;
+    /// use migrant_lib::Config;
+    /// use migrant_lib::config::MySqlSettingsBuilder;
+    /// # fn main() { run().unwrap() }
+    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// Config::init_in(env::current_dir()?)
+    ///     .with_mysql_options(
+    ///         MySqlSettingsBuilder::empty()
+    ///             .database_name("my_db")
+    ///             .database_user("me")
+    ///             .database_port(4444))
+    ///     .initialize()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_mysql_options(&mut self, options: &MySqlSettingsBuilder) -> &mut Self {
+        self.database_options = Some(DatabaseConfigOptions::MySql(options.clone()));
+        self
+    }
+
     /// Determines whether new .migrant file location should be in
     /// the given directory or a user specified path
     fn confirm_new_config_location(dir: &Path) -> Result<PathBuf> {
@@ -641,6 +667,10 @@ impl Settings {
             "postgres" => {
                 let settings = toml::from_str::<PostgresSettings>(&content)?;
                 ConfigurableSettings::Postgres(settings)
+            }
+            "mysql" => {
+                let settings = toml::from_str::<MySqlSettings>(&content)?;
+                ConfigurableSettings::MySql(settings)
             }
             t => bail_fmt!(ErrorKind::Config, "Invalid database_type: {:?}", t),
         };
