@@ -2,8 +2,19 @@
 
 ## [Unreleased]
 ### Added
+- Add MySQL support
+    - drivers:
+        - the `mysql` crate
+        - wrapping the `mysqlsh` (mysql-shell) tool
+- Add `all` feature to include all backends
 
 ### Changed
+- Update `test.sh` script to deal with mysql setup/teardown
+    - a `mysql` root password is required when running locally
+    - when running on ci (travis), no password is required
+    - shorten testing user name
+- Add `mysql` re-export in the `types` module
+- Update ci intall script to download/install `mysqlsh` (mysql-shell)
 
 ### Removed
 
