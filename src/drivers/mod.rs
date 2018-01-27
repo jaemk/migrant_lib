@@ -1,6 +1,6 @@
 use super::errors::*;
 
-#[cfg(any(not(feature="with-mysql"), not(feature="postgresql"), not(feature="sqlite")))]
+#[cfg(any(not(feature="-mysql"), not(feature="-postgres"), not(feature="-sqlite")))]
 use connection;
 
 mod sql {
@@ -17,25 +17,25 @@ mod sql {
     // All tags are validated when created and again when loaded from the database migration table,
     // limiting chars to `[a-z0-9-]` and the full pattern to `[0-9]{14}_[a-z0-9-]+` so even if malicious
     // tags find their way into the database, tag validators should raise errors and point them out
-    #[cfg(not(feature="sqlite"))]
+    #[cfg(not(feature="-sqlite"))]
     pub use self::q_sqlite::*;
-    #[cfg(not(feature="sqlite"))]
+    #[cfg(not(feature="-sqlite"))]
     mod q_sqlite {
         pub static SQLITE_ADD_MIGRATION: &'static str = "insert into __migrant_migrations (tag) values ('__VAL__');";
         pub static SQLITE_DELETE_MIGRATION: &'static str = "delete from __migrant_migrations where tag = '__VAL__';";
     }
 
-    #[cfg(not(feature="postgresql"))]
+    #[cfg(not(feature="-postgres"))]
     pub use self::q_postgres::*;
-    #[cfg(not(feature="postgresql"))]
+    #[cfg(not(feature="-postgres"))]
     mod q_postgres {
         pub static PG_ADD_MIGRATION: &'static str = "prepare stmt as insert into __migrant_migrations (tag) values ($1); execute stmt('__VAL__'); deallocate stmt;";
         pub static PG_DELETE_MIGRATION: &'static str = "prepare stmt as delete from __migrant_migrations where tag = $1; execute stmt('__VAL__'); deallocate stmt;";
     }
 
-    #[cfg(not(feature="with-mysql"))]
+    #[cfg(not(feature="-mysql"))]
     pub use self::q_mysql::*;
-    #[cfg(not(feature="with-mysql"))]
+    #[cfg(not(feature="-mysql"))]
     mod q_mysql {
         pub static MYSQL_ADD_MIGRATION: &'static str = "prepare stmt from 'insert into __migrant_migrations (tag) values (?)'; set @a = '__VAL__'; execute stmt using @a; deallocate prepare stmt;";
         pub static MYSQL_DELETE_MIGRATION: &'static str = "prepare stmt from 'delete from __migrant_migrations where tag = ?'; set @a = '__VAL__'; execute stmt using @a; deallocate prepare stmt;";

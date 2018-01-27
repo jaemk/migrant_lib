@@ -2,16 +2,16 @@
 Re-exported database-specific drivers
 
 When built with database-specific features, this module will contain
-re-exported connection types (`rusqlite` / `postgres`)
+re-exported connection types (`rusqlite` / `postgres` / `mysql`)
 
 */
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub use postgres::*;
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub use rusqlite::*;
 
-#[cfg(feature="with-mysql")]
+#[cfg(feature="-mysql")]
 pub use mysql::*;
 

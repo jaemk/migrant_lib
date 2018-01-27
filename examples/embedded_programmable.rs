@@ -5,7 +5,7 @@ option of creating programmable migrations in rust!
 
 This example shows functionality for both sqlite and postgres databases, but
 has a `Settings` object configured to run only for sqlite.
-This should be run with `cargo run --example embedded_programmable --features sqlite`
+This should be run with `cargo run --example embedded_programmable --features -sqlite`
 
 */
 extern crate migrant_lib;
@@ -16,7 +16,7 @@ use migrant_lib::{Config, Settings, FileMigration, EmbeddedMigration, FnMigratio
 mod migrations {
     use super::*;
     pub struct Custom;
-    #[cfg(any( not(any(feature="sqlite", feature="postgresql")), all(feature="sqlite", feature="postgresql")))]
+    #[cfg(any( not(any(feature="-sqlite", feature="-postgres")), all(feature="-sqlite", feature="-postgres")))]
     impl Custom {
         pub fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
             print!(" <[Up] Hint: Use a (only one) database specific feature!>");
@@ -28,7 +28,7 @@ mod migrations {
         }
     }
 
-    #[cfg(all(feature="sqlite", not(feature="postgresql")))]
+    #[cfg(all(feature="-sqlite", not(feature="-postgres")))]
     impl Custom {
         /// Sqlite
         pub fn up(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
@@ -45,7 +45,7 @@ mod migrations {
         }
     }
 
-    #[cfg(all(feature="postgresql", not(feature="sqlite")))]
+    #[cfg(all(feature="-postgres", not(feature="-sqlite")))]
     impl Custom {
         /// Postgres
         pub fn up(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {

@@ -2,14 +2,14 @@ use std::fs;
 use std::path::Path;
 use super::*;
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 use std::io::Read;
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 use rusqlite::Connection;
 
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 use std::process::Command;
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 use std::str;
 
 // --
@@ -31,7 +31,7 @@ pub fn create_file_if_missing(path: &Path) -> Result<bool> {
 }
 
 
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 fn sqlite_cmd(db_path: &str, cmd: &str) -> Result<String> {
     let out = Command::new("sqlite3")
                     .arg(&db_path)
@@ -53,13 +53,13 @@ fn sqlite_cmd(db_path: &str, cmd: &str) -> Result<String> {
 // --
 // Check `__migrant_migrations` table exists
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn migration_table_exists(db_path: &str) -> Result<bool> {
     let stdout = sqlite_cmd(db_path, sql::SQLITE_MIGRATION_TABLE_EXISTS)?;
     Ok(stdout.trim() == "1")
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn migration_table_exists(db_path: &str) -> Result<bool> {
     let conn = Connection::open(db_path)?;
     let exists: bool = conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, &[], |row| row.get(0))?;
@@ -70,7 +70,7 @@ pub fn migration_table_exists(db_path: &str) -> Result<bool> {
 // --
 // Create `__migrant_migrations` table
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn migration_setup(db_path: &Path) -> Result<bool> {
     let db_path = db_path.as_os_str().to_str().unwrap();
     if !migration_table_exists(db_path)? {
@@ -80,7 +80,7 @@ pub fn migration_setup(db_path: &Path) -> Result<bool> {
     Ok(false)
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn migration_setup(db_path: &Path) -> Result<bool> {
     let db_path = db_path.to_str().unwrap();
     if !migration_table_exists(db_path)? {
@@ -95,13 +95,13 @@ pub fn migration_setup(db_path: &Path) -> Result<bool> {
 // --
 // Select all migrations from `__migrant_migrations` table
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let stdout = sqlite_cmd(db_path, sql::GET_MIGRATIONS)?;
     Ok(stdout.trim().lines().map(String::from).collect::<Vec<_>>())
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
     let mut stmt = conn.prepare(sql::GET_MIGRATIONS)?;
@@ -118,13 +118,13 @@ pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
 // --
 // Insert tag into `__migrant_migrations` table
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     sqlite_cmd(db_path, &sql::SQLITE_ADD_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     let conn = Connection::open(db_path)?;
     conn.execute("insert into __migrant_migrations (tag) values ($1)", &[&tag])?;
@@ -135,13 +135,13 @@ pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
 // --
 // Remove tag from `__migrant_migrations` table
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     sqlite_cmd(db_path, &sql::SQLITE_DELETE_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     let conn = Connection::open(db_path)?;
     conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
@@ -152,7 +152,7 @@ pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
 // --
 // Apply migration file to database
 // --
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
     let db_path = db_path.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid db path: {:?}", db_path))?;
     let filename = filename.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
@@ -160,7 +160,7 @@ pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
     let mut file = fs::File::open(filename)?;
     let mut buf = String::new();
@@ -175,12 +175,12 @@ pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
 }
 
 
-#[cfg(not(feature="sqlite"))]
+#[cfg(not(feature="-sqlite"))]
 pub fn run_migration_str(_db_path: &Path, _stmt: &str) -> Result<connection::markers::SqliteFeatureRequired> {
-    panic!("\n** Migrant ERROR: `sqlite` feature required **");
+    panic!("\n** Migrant ERROR: `-sqlite` feature required **");
 }
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 pub fn run_migration_str(db_path: &Path, stmt: &str) -> Result<()> {
     if stmt.is_empty() { return Ok(()); }
 

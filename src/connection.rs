@@ -2,13 +2,13 @@
 use {Config};
 use errors::*;
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 use postgres;
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 use rusqlite;
 
-#[cfg(feature="with-mysql")]
+#[cfg(feature="-mysql")]
 use mysql;
 
 
@@ -16,7 +16,7 @@ use mysql;
 pub mod markers {
     pub struct PostgresqlFeatureRequired;
     pub struct SqliteFeatureRequired;
-    pub struct WithMySQLFeatureRequired;
+    pub struct MySQLFeatureRequired;
 }
 #[allow(unused_imports)]
 use self::markers::*;
@@ -32,40 +32,40 @@ impl<'a> DbConn<'a> {
         Self { config }
     }
 
-    /// Generate a `postgres::Connection`, `postgresql` feature required
-    #[cfg(not(feature="postgresql"))]
+    /// Generate a `postgres::Connection`, `-postgres` feature required
+    #[cfg(not(feature="-postgres"))]
     pub fn pg_connection(&self) -> Result<PostgresqlFeatureRequired> {
         unimplemented!()
     }
 
-    /// Generate a `postgres::Connection`, `postgresql` feature required
-    #[cfg(feature="postgresql")]
+    /// Generate a `postgres::Connection`, `-postgres` feature required
+    #[cfg(feature="-postgres")]
     pub fn pg_connection(&self) -> Result<postgres::Connection> {
         let conn_str = self.config.connect_string()?;
         Ok(postgres::Connection::connect(conn_str, postgres::TlsMode::None)?)
     }
 
-    /// Generate a `mysql::Conn`, `with-mysql` feature required
-    #[cfg(not(feature="with-mysql"))]
-    pub fn mysql_connection(&self) -> Result<WithMySQLFeatureRequired> {
+    /// Generate a `mysql::Conn`, `-mysql` feature required
+    #[cfg(not(feature="-mysql"))]
+    pub fn mysql_connection(&self) -> Result<MySQLFeatureRequired> {
         unimplemented!()
     }
 
-    /// Generate a `mysql::Conn`, `with-mysql` feature required
-    #[cfg(feature="with-mysql")]
+    /// Generate a `mysql::Conn`, `-mysql` feature required
+    #[cfg(feature="-mysql")]
     pub fn mysql_connection(&self) -> Result<mysql::Conn> {
         let conn_str = self.config.connect_string()?;
         Ok(mysql::Conn::new(conn_str)?)
     }
 
-    /// Generate a `rusqlite::Connection`, `sqlite` feature required
-    #[cfg(not(feature="sqlite"))]
+    /// Generate a `rusqlite::Connection`, `-sqlite` feature required
+    #[cfg(not(feature="-sqlite"))]
     pub fn sqlite_connection(&self) -> Result<SqliteFeatureRequired> {
         unimplemented!()
     }
 
-    /// Generate a `rusqlite::Connection`, `sqlite` feature required
-    #[cfg(feature="sqlite")]
+    /// Generate a `rusqlite::Connection`, `-sqlite` feature required
+    #[cfg(feature="-sqlite")]
     pub fn sqlite_connection(&self) -> Result<rusqlite::Connection> {
         let db_path = self.config.database_path()?;
         Ok(rusqlite::Connection::open(db_path)?)

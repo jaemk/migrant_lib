@@ -3,16 +3,16 @@ use std;
 use std::path::Path;
 use super::*;
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 use std::io::Read;
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 use postgres::{Connection, TlsMode};
 
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 use std::process::Command;
 
 
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 fn psql_cmd(conn_str: &str, cmd: &str) -> Result<String> {
     let out = Command::new("psql")
                     .arg(conn_str)
@@ -37,7 +37,7 @@ fn psql_cmd(conn_str: &str, cmd: &str) -> Result<String> {
 // --
 // Check connection
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     let out = Command::new("psql")
                     .arg(conn_str)
@@ -48,7 +48,7 @@ pub fn can_connect(conn_str: &str) -> Result<bool> {
     Ok(out.status.success())
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     match Connection::connect(conn_str, TlsMode::None) {
         Ok(_)   => Ok(true),
@@ -60,13 +60,13 @@ pub fn can_connect(conn_str: &str) -> Result<bool> {
 // --
 // Check `__migrant_migrations` table exists
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let stdout = psql_cmd(conn_str, sql::PG_MIGRATION_TABLE_EXISTS)?;
     Ok(stdout.trim() == "t")
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let conn = Connection::connect(conn_str, TlsMode::None)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
@@ -80,7 +80,7 @@ pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
 // --
 // Create `__migrant_migrations` table
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         psql_cmd(conn_str, sql::CREATE_TABLE)?;
@@ -89,7 +89,7 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
     Ok(false)
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         let conn = Connection::connect(conn_str, TlsMode::None)
@@ -105,13 +105,13 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
 // --
 // Select all migrations from `__migrant_migrations` table
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let stdout = psql_cmd(conn_str, sql::GET_MIGRATIONS)?;
     Ok(stdout.trim().lines().map(String::from).collect())
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
     let rows = conn.query(sql::GET_MIGRATIONS, &[])?;
@@ -122,13 +122,13 @@ pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
 // --
 // Insert migration tag into `__migrant_migrations` table
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     psql_cmd(conn_str, &sql::PG_ADD_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
     conn.execute("insert into __migrant_migrations (tag) values ($1)", &[&tag])?;
@@ -139,13 +139,13 @@ pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 // --
 // Delete migration tag from `__migrant_migrations` table
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     psql_cmd(conn_str, &sql::PG_DELETE_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
     conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
@@ -156,7 +156,7 @@ pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 // --
 // Apply migration to database
 // --
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let filename = filename.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
     let migrate = Command::new("psql")
@@ -173,7 +173,7 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut file = std::fs::File::open(filename)?;
     let mut buf = String::new();
@@ -187,12 +187,12 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
 }
 
 
-#[cfg(not(feature="postgresql"))]
+#[cfg(not(feature="-postgres"))]
 pub fn run_migration_str(_conn_str: &str, _stmt: &str) -> Result<connection::markers::PostgresqlFeatureRequired> {
-    panic!("\n** Migrant ERROR: `postgresql` feature required **");
+    panic!("\n** Migrant ERROR: `-postgres` feature required **");
 }
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;

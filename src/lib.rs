@@ -12,12 +12,12 @@
 
 **Available Features:**
 
-| Feature      |    Backend                   |
-|--------------|------------------------------|
-| `postgresql` | Enable postgres connectivity |
-| `sqlite`     | Enable sqlite connectivity   |
-| `with-mysql` | Enable mysql connectivity    |
-| `all`        | Enable all backends          |
+| Feature       |    Backend                   |
+|---------------|------------------------------|
+| `-postgres`   | Enable postgres connectivity |
+| `-sqlite`     | Enable sqlite connectivity   |
+| `-mysql`      | Enable mysql connectivity    |
+| `all`         | Enable all backends          |
 
 
 Note: No features are enabled by default
@@ -31,7 +31,7 @@ Note: No features are enabled by default
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
-  enabled (`postgresql` / `sqlite` / `with-mysql`).
+  enabled (`-postgres` / `-sqlite` / `-mysql`).
 - When database features are enabled, the entirety of the database-specific connection library will
   be re-exported in the `types` module.
 
@@ -96,13 +96,13 @@ extern crate regex;
 extern crate percent_encoding;
 extern crate url;
 
-#[cfg(feature="postgresql")]
+#[cfg(feature="-postgres")]
 extern crate postgres;
 
-#[cfg(feature="sqlite")]
+#[cfg(feature="-sqlite")]
 extern crate rusqlite;
 
-#[cfg(feature="with-mysql")]
+#[cfg(feature="-mysql")]
 extern crate mysql;
 
 use std::collections::HashMap;

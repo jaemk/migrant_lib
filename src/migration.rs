@@ -145,7 +145,7 @@ impl Migratable for FileMigration {
 /// SQL statements provided to `EmbeddedMigration` will be embedded in
 /// the executable so no files are required at run-time. The
 /// standard `include_str!` macro can be used to embed contents of files.
-/// Database specific features (`postgresql`/`sqlite`) are required to use
+/// Database specific features (`-postgres`/`-sqlite`/`-mysql`) are required to use
 /// this functionality.
 ///
 /// # Example
@@ -203,7 +203,7 @@ impl EmbeddedMigration {
 impl Migratable for EmbeddedMigration {
     fn apply_up(&self, _db_kind: DbKind, _config: &Config) -> std::result::Result<(), Box<std::error::Error>> {
         if let Some(ref _up) = self.up {
-            #[cfg(any(feature="postgresql", feature="sqlite", feature="with-mysql"))]
+            #[cfg(any(feature="-postgres", feature="-sqlite", feature="-mysql"))]
             match _db_kind {
                 DbKind::Sqlite => {
                     let db_path = _config.database_path()?;
@@ -218,7 +218,7 @@ impl Migratable for EmbeddedMigration {
                     drivers::mysql::run_migration_str(&conn_str, _up)?;
                 }
             }
-            #[cfg(not(any(feature="postgresql", feature="sqlite", feature="with-mysql")))]
+            #[cfg(not(any(feature="-postgres", feature="-sqlite", feature="-mysql")))]
             panic!("** Migrant ERROR: Database specific feature required to run embedded-file migration **");
         } else {
             print_flush!("(empty) ...");
@@ -258,7 +258,7 @@ impl Migratable for EmbeddedMigration {
 /// Define a programmable migration
 ///
 /// `FnMigration`s have full database access. Database specific
-/// features (`postgresql`/`sqlite`) are required to use this functionality.
+/// features (`-postgres`/`-sqlite`/`-mysql`) are required to use this functionality.
 /// A full re-export of database specific crates are available in `migrant_lib::types`
 #[derive(Clone, Debug)]
 pub struct FnMigration<T, U> {
