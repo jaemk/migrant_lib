@@ -1,4 +1,3 @@
-
 # Contributing
 
 Thanks for contributing!
@@ -7,7 +6,14 @@ Thanks for contributing!
 ## Getting Started
 
 - [Install rust](https://www.rust-lang.org/en-US/install.html)
-- Install database dependencies (linux): `apt install sqlite3 libsqlite3-dev postgresql libpq-dev`
+- Install database dependencies (linux):
+    - *PostgreSQL*: `apt install postgresql libpq-dev`
+    - *SQLite*: `apt install sqlite3 libsqlite3-dev`
+    - *MySQL*: See [mysql install docs](https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/)
+       - [Download the apt repo `.deb`](https://dev.mysql.com/downloads/repo/apt/)
+       - `dpkg -i mysql-apt-config_<version>_all.deb`
+       - `apt update`
+       - `apt install mysql-server mysql-shell`
 - `cargo build`
 
 
@@ -25,7 +31,8 @@ Thanks for contributing!
 
 The `test.sh` script exists to handle setup and tear-down of testing databases before running library tests,
 as well as ensuring the tests are run with and without the various feature flags.
-Note, some commands in this script will likely ask for your password when setting up managed databases, e.g. `postgres`.
+Note: Some commands in this script will ask for sudo access for managing a postgres test database,
+and your `mysql` root password must be provided when running locally.
 
 
 ## Submitting Changes
