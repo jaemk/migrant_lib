@@ -3,7 +3,7 @@
 MYSQL_PASS=""
 if [[ -z $1 ]]; then
     echo "Error: Please specify your mysql root password or --no-pass"
-    echo "usage: $0 (--no-pass|<root-password>)"
+    echo "usage: $0 (--no-pass|<mysql-root-password>)"
     exit 1
 else
     if [ "$1" != "--no-pass" ]; then
@@ -68,7 +68,7 @@ else
 fi
 
 setup $MYSQL_PASS
-SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test --features 'sqlite postgresql with-mysql' -- --nocapture
+SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test --features '-sqlite -postgres -mysql' -- --nocapture
 if [ $? -eq 0 ]; then
     teardown $MYSQL_PASS
 else
