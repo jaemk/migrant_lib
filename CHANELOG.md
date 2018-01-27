@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Removed
+
+
+## [0.17.0]
+### Added
 - Add MySQL support
     - drivers:
         - the `mysql` crate
@@ -15,6 +23,10 @@
     - shorten testing user name
 - Add `mysql` re-export in the `types` module
 - Update ci intall script to download/install `mysqlsh` (mysql-shell)
+- Change feature flags to:
+    - `-postgres`
+    - `-sqlite`
+    - `-mysql`
 
 ### Removed
 
