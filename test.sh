@@ -68,7 +68,7 @@ else
 fi
 
 setup $MYSQL_PASS
-SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test --features '-sqlite -postgres -mysql' -- --nocapture
+SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test --features 'd-sqlite d-postgres d-mysql' -- --nocapture
 if [ $? -eq 0 ]; then
     teardown $MYSQL_PASS
 else

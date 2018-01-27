@@ -36,8 +36,8 @@ mysql = { version = "12", optional = true }
 
 [features]
 default = []
--sqlite = ["rusqlite"]
--postgres = ["postgres"]
--mysql = ["mysql"]
-all = ["-sqlite", "-postgres", "-mysql"]
+d-sqlite = ["rusqlite"]
+d-postgres = ["postgres"]
+d-mysql = ["mysql"]
+d-all = ["d-sqlite", "d-postgres", "d-mysql"]
 

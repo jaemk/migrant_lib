@@ -14,7 +14,7 @@
     - drivers:
         - the `mysql` crate
         - wrapping the `mysqlsh` (mysql-shell) tool
-- Add `all` feature to include all backends
+- Add `d-all` feature to include all backends
 
 ### Changed
 - Update `test.sh` script to deal with mysql setup/teardown
@@ -24,9 +24,10 @@
 - Add `mysql` re-export in the `types` module
 - Update ci intall script to download/install `mysqlsh` (mysql-shell)
 - Change feature flags to:
-    - `-postgres`
-    - `-sqlite`
-    - `-mysql`
+    - `d-postgres`
+    - `d-sqlite`
+    - `d-mysql`
+    - `d-all`
 
 ### Removed
 

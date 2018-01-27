@@ -13,12 +13,12 @@
 
 **Available Features:**
 
-| Feature      |    Backend                   |
-|--------------|------------------------------|
-| `postgresql` | Enable postgres connectivity |
-| `sqlite`     | Enable sqlite connectivity   |
-| `with-mysql` | Enable mysql connectivity    |
-| `all`        | Enable all backends          |
+| Feature       |    Backend                   |
+|---------------|------------------------------|
+| `d-postgres`  | Enable postgres connectivity |
+| `d-sqlite`    | Enable sqlite connectivity   |
+| `d-mysql`     | Enable mysql connectivity    |
+| `d-all`       | Enable all backends          |
 
 
 Note: No features are enabled by default
@@ -32,7 +32,7 @@ Note: No features are enabled by default
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
-  enabled (`postgresql` / `sqlite` / `with-mysql`).
+  enabled (`d-postgres` / `d-sqlite` / `d-mysql`).
 - When database features are enabled, the entirety of the database-specific connection library will
   be re-exported in the `types` module.
 

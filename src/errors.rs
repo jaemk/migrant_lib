@@ -8,13 +8,13 @@ use url;
 use chrono;
 use serde_json;
 
-#[cfg(feature="-sqlite")]
+#[cfg(feature="d-sqlite")]
 use rusqlite;
 
-#[cfg(feature="-postgres")]
+#[cfg(feature="d-postgres")]
 use postgres;
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 use mysql;
 
 
@@ -28,9 +28,9 @@ error_chain! {
         UrlParse(url::ParseError);
         ChronoParse(chrono::ParseError);
         Json(serde_json::Error);
-        Sqlite(rusqlite::Error) #[cfg(feature="-sqlite")];
-        Postgres(postgres::Error) #[cfg(feature="-postgres")];
-        MySql(mysql::Error) #[cfg(feature="-mysql")];
+        Sqlite(rusqlite::Error) #[cfg(feature="d-sqlite")];
+        Postgres(postgres::Error) #[cfg(feature="d-postgres")];
+        MySql(mysql::Error) #[cfg(feature="d-mysql")];
     }
     errors {
         Config(s: String) {

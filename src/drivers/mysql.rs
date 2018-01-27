@@ -5,20 +5,20 @@ use super::*;
 
 use std::io::Read;
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 use mysql::{self, Conn};
 
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 use std::process::{Command, Stdio};
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 use std::io::Write;
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 use serde;
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 use serde_json;
 
 
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 mod mysql_output {
     #[derive(Deserialize, Clone)]
     pub struct ShellError {
@@ -41,10 +41,10 @@ mod mysql_output {
     }
 }
 
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 use self::mysql_output::*;
 
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(conn_str: &str, cmd: &str) -> Result<ShellOutput<T>> {
     // Or with the regular mysql tool
     // mysql -u root --password=[pass] <db> -e "statement" --skip-column-names --batch
@@ -102,14 +102,14 @@ fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(conn_str: &str, cmd: &str) 
 // --
 // Check connection
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     mysql_cmd::<String>(conn_str, "")
         .chain_err(|| format!("Unable to connect to mysql database with conn str: {:?}", conn_str))?;
     Ok(true)
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     Conn::new(conn_str)
         .chain_err(|| format!("Unable to connect to mysql database with conn str: {:?}", conn_str))?;
@@ -120,7 +120,7 @@ pub fn can_connect(conn_str: &str) -> Result<bool> {
 // --
 // Check `__migrant_migrations` table exists
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let out = mysql_cmd::<u32>(conn_str, sql::MYSQL_MIGRATION_TABLE_EXISTS)?;
     let rows = out.rows.ok_or_else(|| format_err!(ErrorKind::ShellCommand,
@@ -129,7 +129,7 @@ pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     Ok(rows[0].tag == 1)
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
     let result = conn.query(sql::MYSQL_MIGRATION_TABLE_EXISTS)?;
@@ -146,7 +146,7 @@ pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
 // --
 // Create `__migrant_migrations` table
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         mysql_cmd::<u32>(conn_str, sql::MYSQL_CREATE_TABLE)?;
@@ -155,7 +155,7 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
     Ok(false)
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
@@ -170,7 +170,7 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
 // --
 // Select all migrations from `__migrant_migrations` table
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let out = mysql_cmd::<String>(conn_str, sql::GET_MIGRATIONS)?;
     let rows = out.rows.ok_or_else(|| format_err!(ErrorKind::ShellCommand,
@@ -178,7 +178,7 @@ pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     Ok(rows.iter().map(|r| r.tag.to_string()).collect())
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
     let rows = conn.query(sql::GET_MIGRATIONS)?;
@@ -194,13 +194,13 @@ pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
 // --
 // Insert migration tag into `__migrant_migrations` table
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     mysql_cmd::<u32>(conn_str, &sql::MYSQL_ADD_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
     conn.prep_exec("insert into __migrant_migrations (tag) values (?)", (tag,))?;
@@ -211,13 +211,13 @@ pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 // --
 // Delete migration tag from `__migrant_migrations` table
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     mysql_cmd::<u32>(conn_str, &sql::MYSQL_DELETE_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
     conn.prep_exec("delete from __migrant_migrations where tag = ?", (tag,))?;
@@ -228,7 +228,7 @@ pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 // --
 // Apply migration to database
 // --
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut file = std::fs::File::open(filename)?;
     let mut buf = String::new();
@@ -237,7 +237,7 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut file = std::fs::File::open(filename)?;
     let mut buf = String::new();
@@ -249,12 +249,12 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
 }
 
 
-#[cfg(not(feature="-mysql"))]
+#[cfg(not(feature="d-mysql"))]
 pub fn run_migration_str(_conn_str: &str, _stmt: &str) -> Result<connection::markers::MySQLFeatureRequired> {
-    panic!("\n** Migrant ERROR: `-mysql` feature required **");
+    panic!("\n** Migrant ERROR: `d-mysql` feature required **");
 }
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
     conn.query(stmt).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;

@@ -6,12 +6,12 @@ re-exported connection types (`rusqlite` / `postgres` / `mysql`)
 
 */
 
-#[cfg(feature="-postgres")]
+#[cfg(feature="d-postgres")]
 pub use postgres::*;
 
-#[cfg(feature="-sqlite")]
+#[cfg(feature="d-sqlite")]
 pub use rusqlite::*;
 
-#[cfg(feature="-mysql")]
+#[cfg(feature="d-mysql")]
 pub use mysql::*;
 
