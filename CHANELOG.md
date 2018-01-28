@@ -8,6 +8,19 @@
 ### Removed
 
 
+## [0.17.2]
+### Added
+
+### Changed
+- Add link to contributing in crate doc and readme
+- Update `embedded_programmable` example
+    - Clean up unnecessary db feature cfg's
+    - Make migrations more interesting
+- Update docs using `include_str`
+
+### Removed
+
+
 ## [0.17.1]
 ### Added
 
