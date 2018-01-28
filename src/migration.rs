@@ -155,9 +155,9 @@ impl Migratable for FileMigration {
 /// # use migrant_lib::EmbeddedMigration;
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
-/// EmbeddedMigration::with_tag("initial")?
-///     .up(include_str!("../migrations/embedded/initial/up.sql"))
-///     .down(include_str!("../migrations/embedded/initial/down.sql"));
+/// EmbeddedMigration::with_tag("create-users-table")?
+///     .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
+///     .down(include_str!("../migrations/embedded/create_users_table/down.sql"));
 /// # Ok(())
 /// # }
 /// ```

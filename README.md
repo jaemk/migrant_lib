@@ -39,26 +39,26 @@ Note: No features are enabled by default
 
 
 ```rust
-fn up(_: DbConn) -> Result<(), Box<std::error::Error>> {
+fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
     print!(" Up!");
     Ok(())
 }
 
-fn down(_: DbConn) -> Result<(), Box<std::error::Error>> {
+fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
     print!(" Down!");
     Ok(())
 }
 
 config.use_migrations(vec![
-    FileMigration::with_tag("initial")?
-        .up("migrations/embedded/initial/up.sql")?
-        .down("migrations/embedded/initial/down.sql")?
+    migrant_lib::FileMigration::with_tag("create-users-table")?
+        .up("migrations/embedded/create_users_table/up.sql")?
+        .down("migrations/embedded/create_users_table/down.sql")?
         .boxed(),
-    EmbeddedMigration::with_tag("second")?
-        .up(include_str!("../migrations/embedded/second/up.sql"))
-        .down(include_str!("../migrations/embedded/second/down.sql"))
+    migrant_lib::EmbeddedMigration::with_tag("create-places-table")?
+        .up(include_str!("../migrations/embedded/create_places_table/up.sql"))
+        .down(include_str!("../migrations/embedded/create_places_table/down.sql"))
         .boxed(),
-    FnMigration::with_tag("custom")?
+    migrant_lib::FnMigration::with_tag("custom")?
         .up(up)
         .down(down)
         .boxed(),

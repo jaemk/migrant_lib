@@ -3,89 +3,70 @@ When using migrant as a library, migrations can be defined in the source code
 instead of being discovered from the file system. This also provides the
 option of creating programmable migrations in rust!
 
-This example shows functionality for both sqlite and postgres databases, but
-has a `Settings` object configured to run only for sqlite.
+This example shows configuration/functionality for sqlite. Using postgres or mysql
+would require using the appropriate `Settings::configure_<db>` method and enabling
+the corresponding database feature.
+
+NOTE: The feature-gated `AddUserData` `impl`s are only required here so the example
+      will compile when running tests with and without features. In regular usage,
+      the `cfg`s are not required since the specified database feature should be
+      enabled in your `Cargo.toml` entry.
+
 This should be run with `cargo run --example embedded_programmable --features d-sqlite`
 
 */
 extern crate migrant_lib;
 
-use migrant_lib::{Config, Settings, FileMigration, EmbeddedMigration, FnMigration, Migrator, Direction};
+use std::env;
+use migrant_lib::{
+    Config, Settings, Migrator, Direction,
+    FileMigration, EmbeddedMigration, FnMigration,
+};
 
 
 mod migrations {
     use super::*;
-    pub struct Custom;
-    #[cfg(any( not(any(feature="d-sqlite", feature="d-postgres")), all(feature="d-sqlite", feature="d-postgres")))]
-    impl Custom {
+    pub struct AddUserData;
+
+    /// NOTE: This cfg'd impl needs to exist so tests compile
+    #[cfg(not(feature="d-sqlite"))]
+    impl AddUserData {
         pub fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            print!(" <[Up] Hint: Use a (only one) database specific feature!>");
+            print!(" <[Up] Hint: Use the sqlite database specific feature!>");
             Ok(())
         }
         pub fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            print!(" <[Down] Hint: Use a (only one) database specific feature!>");
+            print!(" <[Down] Hint: Use the sqlite database specific feature!>");
             Ok(())
         }
     }
 
-    #[cfg(all(feature="d-sqlite", not(feature="d-postgres")))]
-    impl Custom {
-        /// Sqlite
+    #[cfg(feature="d-sqlite")]
+    impl AddUserData {
         pub fn up(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
             let conn = conn.sqlite_connection()?;
-            conn.query_row("select abs(random() % 100)", &[], |row| {
-                let n: u32 = row.get(0);
-                print!(" <random number: {:?}>", n);
-            })?;
-            Ok(())
-        }
-        pub fn down(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            let _conn = conn.sqlite_connection()?;
-            Ok(())
-        }
-    }
-
-    #[cfg(all(feature="d-postgres", not(feature="d-sqlite")))]
-    impl Custom {
-        /// Postgres
-        pub fn up(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            let conn = conn.pg_connection()?;
-            let rows = conn.query("select (select random() * 100 from generate_series(1,1))::int", &[])?;
-            for row in &rows {
-                let n: i32 = row.get(0);
-                print!(" <random number: {:?}>", n);
+            let people = ["james", "lauren", "bean"];
+            for (i, name) in people.iter().enumerate() {
+                conn.execute("insert into users (id, name) values (?1, ?2);",
+                             &[&(i as u32 + 1), name])?;
             }
             Ok(())
         }
         pub fn down(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            let _conn = conn.pg_connection()?;
+            let conn = conn.sqlite_connection()?;
+            let people = ["james", "lauren", "bean"];
+            for name in &people {
+                conn.execute("delete from users where name = ?1", &[name])?;
+            }
             Ok(())
         }
-    }
-}
-
-
-/// Migrant will normally handle creating a database file if it's missing.
-/// This is just so we can use `Path::canonicalize` to get the absolute
-/// path since it can't be hardcoded for this example and `SqliteSettings`
-/// `database_path` must be absolute.
-pub fn create_file_if_missing(path: &std::path::Path) -> Result<bool, Box<std::error::Error>> {
-    if path.exists() {
-        Ok(false)
-    } else {
-        let db_dir = path.parent()
-            .ok_or_else(|| format!("Unable to determine parent path: {:?}", path))?;
-        std::fs::create_dir_all(db_dir)?;
-        std::fs::File::create(path)?;
-        Ok(true)
     }
 }
 
 
 fn run() -> Result<(), Box<std::error::Error>> {
-    let path = std::path::Path::new("db/db.db");
-    create_file_if_missing(path)?;
-    let path = path.canonicalize()?;
+    let path = env::current_dir()?;
+    let path = path.join("db/embedded_example.db");
     let settings = Settings::configure_sqlite()
         .database_path(&path)?
         .build()?;
@@ -95,17 +76,24 @@ fn run() -> Result<(), Box<std::error::Error>> {
 
     // Define migrations
     config.use_migrations(vec![
-        EmbeddedMigration::with_tag("initial")?
-            .up(include_str!("../migrations/embedded/initial/up.sql"))
-            .down(include_str!("../migrations/embedded/initial/down.sql"))
+        EmbeddedMigration::with_tag("create-users-table")?
+            .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
+            .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
             .boxed(),
-        FileMigration::with_tag("second")?
-            .up("migrations/embedded/second/up.sql")?
-            .down("migrations/embedded/second/down.sql")?
+        FnMigration::with_tag("add-user-data")?
+            .up(migrations::AddUserData::up)
+            .down(migrations::AddUserData::down)
             .boxed(),
-        FnMigration::with_tag("custom")?
-            .up(migrations::Custom::up)
-            .down(migrations::Custom::down)
+        FileMigration::with_tag("create-places-table")?
+            .up("migrations/embedded/create_places_table/up.sql")?
+            .down("migrations/embedded/create_places_table/down.sql")?
+            .boxed(),
+        EmbeddedMigration::with_tag("alter-places-table-add-address")?
+            .up("alter table places add column address text;")
+            .down("create table new_places (name text);\
+                   insert into new_places select name from places;\
+                   drop table if exists places;
+                   alter table new_places rename to places;")
             .boxed(),
     ])?;
 
@@ -144,3 +132,4 @@ pub fn main() {
         println!("[ERROR] {}", e);
     }
 }
+

@@ -735,13 +735,13 @@ impl Config {
     ///     .ok_or_else(|| "Settings file not found")?;
     /// let mut config = Config::from_settings_file(&p)?;
     /// config.use_migrations(vec![
-    ///     EmbeddedMigration::with_tag("initial")?
-    ///         .up(include_str!("../migrations/embedded/initial/up.sql"))
-    ///         .down(include_str!("../migrations/embedded/initial/down.sql"))
+    ///     EmbeddedMigration::with_tag("create-users-table")?
+    ///         .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
+    ///         .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
     ///         .boxed(),
-    ///     FileMigration::with_tag("second")?
-    ///         .up("migrations/embedded/second/up.sql")?
-    ///         .down("migrations/embedded/second/down.sql")?
+    ///     FileMigration::with_tag("create-places-table")?
+    ///         .up("migrations/embedded/create_places_table/up.sql")?
+    ///         .down("migrations/embedded/create_places_table/down.sql")?
     ///         .boxed(),
     ///     FnMigration::with_tag("custom")?
     ///         .up(migrations::Custom::up)
