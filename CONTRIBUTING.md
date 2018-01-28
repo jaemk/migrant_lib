@@ -7,9 +7,9 @@ Thanks for contributing!
 
 - [Install rust](https://www.rust-lang.org/en-US/install.html)
 - Install database dependencies (linux):
-    - *PostgreSQL*: `apt install postgresql libpq-dev`
-    - *SQLite*: `apt install sqlite3 libsqlite3-dev`
-    - *MySQL*: See [mysql install docs](https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/)
+    - **PostgreSQL**: `apt install postgresql libpq-dev`
+    - **SQLite**: `apt install sqlite3 libsqlite3-dev`
+    - **MySQL**: See [mysql install docs](https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/)
        - [Download the apt repo `.deb`](https://dev.mysql.com/downloads/repo/apt/)
        - `dpkg -i mysql-apt-config_<version>_all.deb`
        - `apt update`
