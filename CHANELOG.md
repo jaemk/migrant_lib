@@ -4,9 +4,11 @@
 ### Added
 
 ### Changed
+- Update crate doc / readme
 
 ### Removed
 
+----
 
 ## [0.17.2]
 ### Added
@@ -20,6 +22,7 @@
 
 ### Removed
 
+----
 
 ## [0.17.1]
 ### Added
@@ -31,6 +34,7 @@
 
 ### Removed
 
+----
 
 ## [0.17.0]
 ### Added
@@ -55,6 +59,7 @@
 
 ### Removed
 
+----
 
 ## [0.16.2]
 ### Added
@@ -64,6 +69,7 @@
 
 ### Removed
 
+----
 
 ## [0.16.1]
 ### Added
@@ -75,6 +81,7 @@
 
 ### Removed
 
+----
 
 ## [0.16.0]
 ### Added
@@ -95,6 +102,7 @@
 
 ### Removed
 
+----
 
 ## [0.15.1]
 ### Added
@@ -110,6 +118,7 @@
 
 ### Removed
 
+----
 
 ## [0.15.0]
 ### Added
@@ -127,6 +136,7 @@
 ### Removed
 - `Settings::with_db_type`
 
+----
 
 ## [0.14.0]
 ### Added
