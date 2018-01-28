@@ -86,7 +86,7 @@ fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(conn_str: &str, cmd: &str) 
                 bail_fmt!(ErrorKind::Migration, "Error executing statement. {}[code: {}]: {}", err.type_, err.code, err.message);
             }
         }
-        bail_fmt!(ErrorKind::ShellCommand, "Error executing statement. No error output received.");
+        bail_fmt!(ErrorKind::ShellCommand, "Command exited in error with any output: {:?}", cmd);
     }
     let output = fix_json_output(&out.stdout)?;
     let output = serde_json::from_str::<Vec<ShellOutput<T>>>(&output)?;
@@ -95,7 +95,7 @@ fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(conn_str: &str, cmd: &str) 
             return Ok(chunk.clone());
         }
     }
-    bail_fmt!(ErrorKind::ShellCommand, "Error executing statement. No row output received.");
+    bail_fmt!(ErrorKind::ShellCommandNoOutput, "No row output received from mysql command: {:?}", cmd);
 }
 
 
@@ -104,9 +104,17 @@ fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(conn_str: &str, cmd: &str) 
 // --
 #[cfg(not(feature="d-mysql"))]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
-    mysql_cmd::<String>(conn_str, "")
-        .chain_err(|| format!("Unable to connect to mysql database with conn str: {:?}", conn_str))?;
-    Ok(true)
+    match mysql_cmd::<String>(conn_str, "") {
+        Err(e) => {
+            if e.is_shell_command_no_output() {
+                return Ok(true);
+            }
+            let e = Err(e);
+            e.chain_err(|| format!("Unable to connect to mysql database with conn str: {:?}", conn_str))?;
+            unreachable!();
+        }
+        Ok(_) => Ok(true)
+    }
 }
 
 #[cfg(feature="d-mysql")]
@@ -284,6 +292,7 @@ mod test {
             .expect("MYSQL_TEST_CONN_STR env variable required");
 
         // no table before setup
+        assert!(can_connect(&conn_str).is_ok());
         let is_setup = _try!(migration_table_exists(&conn_str));
         assert_eq!(false, is_setup, "Assert migration table does not exist");
 

@@ -53,6 +53,10 @@ error_chain! {
             description("ShellCommand")
             display("ShellCommandError: {}", s)
         }
+        ShellCommandNoOutput(s: String) {
+            description("ShellCommandNoOutput")
+            display("ShellCommandNoOutputError: {}", s)
+        }
         PathError(s: String) {
             description("PathError")
             display("PathError: {}", s)
@@ -72,6 +76,13 @@ impl Error {
     pub fn is_migration_complete(&self) -> bool {
         match *self.kind() {
             ErrorKind::MigrationComplete(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_shell_command_no_output(&self) -> bool {
+        match *self.kind() {
+            ErrorKind::ShellCommandNoOutput(_) => true,
             _ => false,
         }
     }

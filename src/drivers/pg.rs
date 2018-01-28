@@ -224,6 +224,7 @@ mod test {
             .expect("POSTGRES_TEST_CONN_STR env variable required");
 
         // no table before setup
+        assert!(can_connect(&conn_str).is_ok());
         let is_setup = _try!(migration_table_exists(&conn_str));
         assert_eq!(false, is_setup, "Assert migration table does not exist");
 

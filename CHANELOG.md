@@ -8,6 +8,17 @@
 ### Removed
 
 
+## [0.17.1]
+### Added
+
+### Changed
+- Fix mysql bug (when wrapping `mysqlsh`) where `can_connect`
+  was returning an error on successful connections because
+  `mysqlsh` stdout is empty
+
+### Removed
+
+
 ## [0.17.0]
 ### Added
 - Add MySQL support
