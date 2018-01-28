@@ -25,8 +25,9 @@ Note: No features are enabled by default
 
 ## Usage
 
-- Migrations can be defined as files or functions.
-- File migrations can be either read from files at runtime or embedded in your executable at compile time.
+- Migrations can be defined as files, string literals, or functions.
+- File migrations can be either read from files at runtime or embedded in your executable at compile time
+  (using [`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html)).
 - Migration tags must all be unique and may only contain the characters `[a-z0-9-]`.
 - Function migrations must have the signature `fn(DbConn) -> Result<(), Box<std::error::Error>>`.
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
