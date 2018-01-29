@@ -75,7 +75,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
     config.setup()?;
 
     // Define migrations
-    config.use_migrations(vec![
+    config.use_migrations(&[
         EmbeddedMigration::with_tag("create-users-table")?
             .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
             .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
