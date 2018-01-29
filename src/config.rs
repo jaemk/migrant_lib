@@ -756,16 +756,19 @@ impl Config {
     /// # }
     /// # fn main() { run().unwrap(); }
     /// ```
-    pub fn use_migrations(&mut self, migrations: Vec<Box<Migratable>>) -> Result<&mut Self> {
-        let mut set = HashSet::new();
-        for mig in &migrations {
+    pub fn use_migrations<T: AsRef<[Box<Migratable>]>>(&mut self, migrations: T) -> Result<&mut Self> {
+        let migrations = migrations.as_ref();
+        let mut set = HashSet::with_capacity(migrations.len());
+        let mut migs = Vec::with_capacity(migrations.len());
+        for mig in migrations {
             let tag = mig.tag();
             if set.contains(&tag) {
                 bail_fmt!(ErrorKind::TagError, "Tags must be unique. Found duplicate: {}", tag)
             }
             set.insert(tag);
+            migs.push(mig.clone());
         }
-        self.migrations = Some(migrations);
+        self.migrations = Some(migs);
         Ok(self)
     }
 
