@@ -4,7 +4,21 @@
 ### Added
 
 ### Changed
+
+### Removed
+
+----
+
+## [0.17.3]
+### Added
+- Add missing `Settings::configure_mysql` method
+- Add completion message to `test.sh` script
+
+### Changed
+- Use `AsRef` trait in `Config::use_migrations`
 - Update crate doc / readme
+- Update lots of documentation all over
+- Update contributing
 
 ### Removed
 
