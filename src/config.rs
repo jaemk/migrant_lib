@@ -282,7 +282,7 @@ impl SqliteSettingsBuilder {
         Self::default()
     }
 
-    /// Set the path to look for a database file.
+    /// **Required** -- Set the absolute path of a database file.
     pub fn database_path<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
         let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
@@ -335,19 +335,19 @@ impl PostgresSettingsBuilder {
         Self::default()
     }
 
-    /// Set the database name.
+    /// **Required** -- Set the database name.
     pub fn database_name(&mut self, name: &str) -> &mut Self {
         self.database_name = Some(name.into());
         self
     }
 
-    /// Set the database user.
+    /// **Required** -- Set the database user.
     pub fn database_user(&mut self, user: &str) -> &mut Self {
         self.database_user = Some(user.into());
         self
     }
 
-    /// Set the database password.
+    /// **Required** -- Set the database password.
     pub fn database_password(&mut self, pass: &str) -> &mut Self {
         self.database_password = Some(pass.into());
         self
@@ -419,19 +419,19 @@ impl MySqlSettingsBuilder {
         Self::default()
     }
 
-    /// Set the database name.
+    /// **Required** -- Set the database name.
     pub fn database_name(&mut self, name: &str) -> &mut Self {
         self.database_name = Some(name.into());
         self
     }
 
-    /// Set the database user.
+    /// **Required** -- Set the database user.
     pub fn database_user(&mut self, user: &str) -> &mut Self {
         self.database_user = Some(user.into());
         self
     }
 
-    /// Set the database password.
+    /// **Required** -- Set the database password.
     pub fn database_password(&mut self, pass: &str) -> &mut Self {
         self.database_password = Some(pass.into());
         self
@@ -705,10 +705,12 @@ pub struct Config {
 impl Config {
     /// Define an explicit set of `Migratable` migrations to use.
     ///
+    /// The order of definition is the order in which they will be applied.
+    ///
     /// When using explicit migrations, make sure they are defined on the `Config`
     /// instance before applied migrations are loaded from the database. This is
     /// required because tag format requirements are stricter for implicit
-    /// (file-system based) migrations, requiring a timestamp to
+    /// (file-system based / `migrant` CLI compatible) migrations, requiring a timestamp to
     /// maintain a deterministic order.
     ///
     /// # Example
@@ -739,7 +741,7 @@ impl Config {
     /// let p = search_for_settings_file(&std::env::current_dir()?)
     ///     .ok_or_else(|| "Settings file not found")?;
     /// let mut config = Config::from_settings_file(&p)?;
-    /// config.use_migrations(vec![
+    /// config.use_migrations(&[
     ///     EmbeddedMigration::with_tag("create-users-table")?
     ///         .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
     ///         .down(include_str!("../migrations/embedded/create_users_table/down.sql"))

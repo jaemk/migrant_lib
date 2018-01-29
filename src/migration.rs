@@ -144,7 +144,9 @@ impl Migratable for FileMigration {
 ///
 /// SQL statements provided to `EmbeddedMigration` will be embedded in
 /// the executable so no files are required at run-time. The
-/// standard `include_str!` macro can be used to embed contents of files.
+/// standard [`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html) macro
+/// can be used to embed contents of files, or a string literal can be provided.
+///
 /// Database specific features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use
 /// this functionality.
 ///
@@ -158,6 +160,18 @@ impl Migratable for FileMigration {
 /// EmbeddedMigration::with_tag("create-users-table")?
 ///     .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
 ///     .down(include_str!("../migrations/embedded/create_users_table/down.sql"));
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ```rust,no_run
+/// # extern crate migrant_lib;
+/// # use migrant_lib::EmbeddedMigration;
+/// # fn main() { run().unwrap(); }
+/// # fn run() -> Result<(), Box<std::error::Error>> {
+/// EmbeddedMigration::with_tag("create-places-table")?
+///     .up("create table places(id integer);")
+///     .down("drop table places;");
 /// # Ok(())
 /// # }
 /// ```
@@ -182,13 +196,13 @@ impl EmbeddedMigration {
         })
     }
 
-    /// Statement to use for `up` migrations
+    /// Static `str` of statements to use for `up` migrations
     pub fn up(&mut self, stmt: &'static str) -> &mut Self {
         self.up = Some(stmt);
         self
     }
 
-    /// Statement to use for `down` migrations
+    /// Static `str` of statements to use for `down` migrations
     pub fn down(&mut self, stmt: &'static str) -> &mut Self {
         self.down = Some(stmt);
         self
@@ -259,7 +273,7 @@ impl Migratable for EmbeddedMigration {
 ///
 /// `FnMigration`s have full database access. Database specific
 /// features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use this functionality.
-/// A full re-export of database specific crates are available in `migrant_lib::types`
+/// A full re-export of database specific crates are available in `migrant_lib::types`.
 #[derive(Clone, Debug)]
 pub struct FnMigration<T, U> {
     pub tag: String,
@@ -286,12 +300,16 @@ impl<T, U> FnMigration<T, U>
     }
 
     /// Function to use for `up` migrations
+    ///
+    /// Function must have the signature `fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>`.
     pub fn up(&mut self, f_up: T) -> &mut Self {
         self.up = Some(f_up);
         self
     }
 
     /// Function to use for `down` migrations
+    ///
+    /// Function must have the signature `fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>`.
     pub fn down(&mut self, f_down: U) -> &mut Self {
         self.down = Some(f_down);
         self

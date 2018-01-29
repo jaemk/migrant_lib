@@ -7,7 +7,8 @@
 >
 > Also see [`migrant`](https://github.com/jaemk/migrant) CLI
 
-`migrant_lib` allows defining and embedding management of migrations in your compiled application.
+`migrant_lib` allows defining and embedding management of database migrations and
+(connection) configuration in your compiled application.
 
 
 **Available Features:**
@@ -52,7 +53,7 @@ fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-config.use_migrations(vec![
+config.use_migrations(&[
     migrant_lib::FileMigration::with_tag("create-users-table")?
         .up("migrations/embedded/create_users_table/up.sql")?
         .down("migrations/embedded/create_users_table/down.sql")?
@@ -318,7 +319,7 @@ pub struct Migrator {
 }
 
 impl Migrator {
-    /// Initialize a new `Migrator` with a given config
+    /// Initialize a new `Migrator` with a given `&Config`
     pub fn with_config(config: &Config) -> Self {
         Self {
             config: config.clone(),
@@ -357,6 +358,9 @@ impl Migrator {
     }
 
     /// Apply migrations using current configuration
+    ///
+    /// Returns an `ErrorKind::MigrationComplete` if all migrations in the given
+    /// direction have already been applied.
     pub fn apply(&self) -> Result<()> {
         apply_migration(
             &self.config, &self.direction,
@@ -591,6 +595,7 @@ pub fn list(config: &Config) -> Result<()> {
 }
 
 
+/// Returns true if tag string is invalid
 fn invalid_tag(tag: &str) -> bool {
     BAD_TAG_RE.is_match(tag)
 }
@@ -598,8 +603,9 @@ fn invalid_tag(tag: &str) -> bool {
 
 /// Create a new migration with the given tag
 ///
-/// Intended only for use with `FileMigration`s not managed directly in source
-/// with `Config::use_migrations`.
+/// Intended only for use when running in "migrant CLI compatibility mode"
+/// where migrations (`FileMigration`s) are all files with names following
+/// the expected timestamp formatted name.
 pub fn new(config: &Config, tag: &str) -> Result<()> {
     if invalid_tag(tag) {
         bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
@@ -624,6 +630,15 @@ pub fn new(config: &Config, tag: &str) -> Result<()> {
 
 
 /// Open a repl connection to the given `Config` settings
+///
+/// Note, the respective database shell utility is expected to be available in `$PATH`.
+///
+/// | Database    |    Utility                  |
+/// |-------------|-----------------------------|
+/// | `postgres`  | `psql`                      |
+/// | `sqlite`    | `sqlite3`                   |
+/// | `mysql`     | `mysqlsh` (`mysql-shell`)   |
+///
 pub fn shell(config: &Config) -> Result<()> {
     Ok(match config.settings.inner.db_kind() {
         DbKind::Sqlite => {
@@ -694,7 +709,9 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
 
 /// Open a migration file containing `tag` in its name
 ///
-/// Intended only for use with `FileMigration`s not managed directly in source
+/// Intended only for use with `FileMigration`s that were created by
+/// `migrant_lib::new` or `migrant` CLI (migration files with names that
+/// follow the expected timestamp format), NOT those managed directly in source
 /// with `Config::use_migrations`.
 pub fn edit(config: &Config, tag: &str, up_down: &Direction) -> Result<()> {
     let mig_dir = config.migration_dir()?;

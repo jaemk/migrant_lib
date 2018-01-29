@@ -5,7 +5,9 @@ in production environments.
 
 Select functionality can be copied from https://github.com/jaemk/migrant/blob/master/src/main.rs
 
-Run with: `cargo run --example migrant_cli_compatible`
+Run with: `cargo run --example migrant_cli_compatible [--features d-sqlite]`
+Note: Running without features will use the corresponding database shell commands.
+      Use the respective `--features` to use the actual database driver libraries (`d-sqlite`, `d-postgres`, `d-mysql`)
 */
 extern crate migrant_lib;
 

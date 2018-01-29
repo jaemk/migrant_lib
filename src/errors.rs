@@ -73,6 +73,7 @@ error_chain! {
 }
 
 impl Error {
+    /// Return `true` if the `ErrorKind` is `ErrorKind::MigrationComplete`
     pub fn is_migration_complete(&self) -> bool {
         match *self.kind() {
             ErrorKind::MigrationComplete(_) => true,
@@ -80,6 +81,10 @@ impl Error {
         }
     }
 
+    /// Return `true` if the `ErrorKind` is `ErrorKind::ShellCommandNoOutput`
+    ///
+    /// This error only arises when using `mysql` is "shell-wrapping" mode where
+    /// the `mysqlsh` utility is used.
     pub fn is_shell_command_no_output(&self) -> bool {
         match *self.kind() {
             ErrorKind::ShellCommandNoOutput(_) => true,
