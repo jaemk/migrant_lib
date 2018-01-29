@@ -20,19 +20,23 @@ Thanks for contributing!
 ## Making Changes
 
 - Please be mindful of the feature gates used to implement functionality with and without database connection crates.
-- After making changes, be sure to run the tests!
+- After making changes, be sure to run the tests (see below)!
 - This crate makes use of [`cargo-readme`](https://github.com/livioribeiro/cargo-readme) (`cargo install cargo-readme`)
   to generate the `README.md` from the crate level documentation in `src/lib.rs`.
   This means `README.md` should never be modified by hand.
   Changes should be made to the crate documentation in `src/lib.rs` and the `readme.sh` script run.
 
 
-## Testing
+## Running Tests
 
 The `test.sh` script exists to handle setup and tear-down of testing databases before running library tests,
 as well as ensuring the tests are run with and without the various feature flags.
 Note: Some commands in this script will ask for sudo access for managing a postgres test database,
 and your `mysql` root password must be provided when running locally.
+
+```bash
+./test.sh <mysql-root-pass>
+```
 
 
 ## Submitting Changes
