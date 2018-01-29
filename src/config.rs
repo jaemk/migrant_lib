@@ -686,6 +686,11 @@ impl Settings {
     pub fn configure_postgres() -> PostgresSettingsBuilder {
         PostgresSettingsBuilder::default()
     }
+
+    /// Initialize a `MySqlSettingsBuilder` to be configured
+    pub fn configure_mysql() -> MySqlSettingsBuilder {
+        MySqlSettingsBuilder::default()
+    }
 }
 
 
