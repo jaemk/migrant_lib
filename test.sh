@@ -76,3 +76,7 @@ else
     exit 1
 fi
 
+set +x
+echo ""
+echo "** Tests complete! **"
+
