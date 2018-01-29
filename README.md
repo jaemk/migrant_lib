@@ -8,7 +8,8 @@
 >
 > Also see [`migrant`](https://github.com/jaemk/migrant) CLI
 
-`migrant_lib` allows defining and embedding management of migrations in your compiled application.
+`migrant_lib` allows defining and embedding management of database migrations and
+(connection) configuration in your compiled application.
 
 
 **Available Features:**
@@ -50,7 +51,7 @@ fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-config.use_migrations(vec![
+config.use_migrations(&[
     migrant_lib::FileMigration::with_tag("create-users-table")?
         .up("migrations/embedded/create_users_table/up.sql")?
         .down("migrations/embedded/create_users_table/down.sql")?
