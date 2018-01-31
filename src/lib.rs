@@ -616,6 +616,8 @@ fn invalid_tag(tag: &str) -> bool {
 
 /// Create a new migration with the given tag
 ///
+/// Generated tags will follow the format `{DT-STAMP}_{TAG}`
+///
 /// Intended only for use when running in "migrant CLI compatibility mode"
 /// where migrations (`FileMigration`s) are all files with names following
 /// the expected timestamp formatted name.
@@ -721,6 +723,8 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
 
 
 /// Open a migration file containing `tag` in its name
+///
+/// In the case of ambiguous names, the user will be prompted for a selection.
 ///
 /// Intended only for use with `FileMigration`s that were created by
 /// `migrant_lib::new` or `migrant` CLI (migration files with names that
