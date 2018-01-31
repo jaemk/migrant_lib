@@ -9,6 +9,22 @@
 
 ----
 
+## [0.18.0]
+### Added
+- Add option to `Migrator` for suppressing output
+
+### Changed
+- Change `DbConn` to `ConnConfig`
+    - Remove functionality for opening database connections
+    - Add methods for getting database type and connection string
+- Prevent embedded and function migrations from compiling without
+  database features
+
+### Removed
+- Remove re-exported database connection crates
+
+----
+
 ## [0.17.3]
 ### Added
 - Add missing `Settings::configure_mysql` method
