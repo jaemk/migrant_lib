@@ -53,6 +53,7 @@ fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
+# #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
 config.use_migrations(&[
     migrant_lib::FileMigration::with_tag("create-users-table")?
         .up("migrations/embedded/create_users_table/up.sql")?

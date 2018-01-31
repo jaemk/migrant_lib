@@ -741,6 +741,7 @@ impl Config {
     /// let p = search_for_settings_file(&std::env::current_dir()?)
     ///     .ok_or_else(|| "Settings file not found")?;
     /// let mut config = Config::from_settings_file(&p)?;
+    /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
     /// config.use_migrations(&[
     ///     EmbeddedMigration::with_tag("create-users-table")?
     ///         .up(include_str!("../migrations/embedded/create_users_table/up.sql"))

@@ -159,6 +159,7 @@ impl Migratable for FileMigration {
 /// # use migrant_lib::EmbeddedMigration;
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
+/// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
 /// EmbeddedMigration::with_tag("create-users-table")?
 ///     .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
 ///     .down(include_str!("../migrations/embedded/create_users_table/down.sql"));
@@ -171,6 +172,7 @@ impl Migratable for FileMigration {
 /// # use migrant_lib::EmbeddedMigration;
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
+/// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
 /// EmbeddedMigration::with_tag("create-places-table")?
 ///     .up("create table places(id integer);")
 ///     .down("drop table places;");
