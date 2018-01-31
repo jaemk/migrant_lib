@@ -10,6 +10,8 @@ use drivers;
 use migratable::Migratable;
 use config::Config;
 use connection::ConnConfig;
+#[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
+use connection::markers::DatabaseFeatureRequired;
 use {DbKind, invalid_tag, Direction, DT_FORMAT};
 use errors::*;
 
@@ -185,6 +187,15 @@ impl EmbeddedMigration {
     /// Create a new `EmbeddedMigration` with the given tag
     ///
     /// Tags may contain [a-z0-9-]
+    #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
+    pub fn with_tag(_tag: &str) -> Result<DatabaseFeatureRequired> {
+        unimplemented!();
+    }
+
+    /// Create a new `EmbeddedMigration` with the given tag
+    ///
+    /// Tags may contain [a-z0-9-]
+    #[cfg(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql"))]
     pub fn with_tag(tag: &str) -> Result<Self> {
         if invalid_tag(tag) {
             bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
@@ -288,6 +299,15 @@ impl<T, U> FnMigration<T, U>
     /// Create a new `FnMigration` with the given tag
     ///
     /// Tags may contain [a-z0-9-]
+    #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
+    pub fn with_tag(_tag: &str) -> Result<DatabaseFeatureRequired> {
+        unimplemented!();
+    }
+
+    /// Create a new `FnMigration` with the given tag
+    ///
+    /// Tags may contain [a-z0-9-]
+    #[cfg(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql"))]
     pub fn with_tag(tag: &str) -> Result<Self> {
         if invalid_tag(tag) {
             bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);

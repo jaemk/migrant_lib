@@ -9,6 +9,7 @@ pub mod markers {
     pub struct MySQLFeatureRequired;
     pub struct PostgresOrMySQLFeatureRequired;
     pub struct SqliteFeatureRequired;
+    pub struct DatabaseFeatureRequired;
 }
 #[allow(unused_imports)]
 use self::markers::*;
