@@ -103,6 +103,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
     println!("Applying migrations...");
     let res = Migrator::with_config(&config)
         .all(true)
+        .show_output(false)
         .apply();
     match res {
         Err(ref e) if e.is_migration_complete() => (),

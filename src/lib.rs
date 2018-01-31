@@ -316,6 +316,7 @@ pub struct Migrator {
     force: bool,
     fake: bool,
     all: bool,
+    show_output: bool,
 }
 
 impl Migrator {
@@ -327,6 +328,7 @@ impl Migrator {
             force: false,
             fake: false,
             all: false,
+            show_output: true,
         }
     }
 
@@ -357,15 +359,131 @@ impl Migrator {
         self
     }
 
+    /// Toggle migration application output. Default is `true`
+    pub fn show_output(&mut self, show_output: bool) -> &mut Self {
+        self.show_output = show_output;
+        self
+    }
+
     /// Apply migrations using current configuration
     ///
     /// Returns an `ErrorKind::MigrationComplete` if all migrations in the given
     /// direction have already been applied.
     pub fn apply(&self) -> Result<()> {
-        apply_migration(
-            &self.config, &self.direction,
-            self.force, self.fake, self.all,
-            )
+        self.apply_migration(&self.config)
+    }
+
+    /// Return the next available up or down migration
+    fn next_available<'a>(direction: &Direction, available: &'a [Box<Migratable>],
+                          applied: &[String]) -> Result<Option<&'a Box<Migratable>>> {
+        Ok(match *direction {
+            Direction::Up => {
+                for mig in available {
+                    let tag = mig.tag();
+                    if !applied.contains(&tag) {
+                        return Ok(Some(mig))
+                    }
+                }
+                None
+            }
+            Direction::Down => {
+                match applied.last() {
+                    Some(tag) => {
+                        let mig = available.iter().rev().find(|m| &m.tag() == tag);
+                        match mig {
+                            None => bail_fmt!(ErrorKind::MigrationNotFound, "Tag not found: {}", tag),
+                            Some(mig) => Some(mig),
+                        }
+                    }
+                    None => None,
+                }
+            }
+        })
+    }
+
+    /// Apply the migration in the specified direction
+    fn run_migration(config: &Config, direction: &Direction,
+                     migration: &Box<Migratable>) -> std::result::Result<(), Box<std::error::Error>> {
+        let db_kind = config.settings.inner.db_kind();
+        Ok(match *direction {
+            Direction::Up => {
+                migration.apply_up(db_kind, config)?;
+            }
+            Direction::Down => {
+                migration.apply_down(db_kind, config)?;
+            }
+        })
+    }
+
+    fn print(&self, s: &str) {
+        if self.show_output {
+            print_flush!("{}", s);
+        }
+    }
+
+    fn println(&self, s: &str) {
+        if self.show_output {
+            println!("{}", s);
+        }
+    }
+
+    /// Try applying the next available migration in the specified `Direction`
+    fn apply_migration(&self, config: &Config) -> Result<()> {
+        let migrations = match config.migrations {
+            Some(ref migrations) => migrations.clone(),
+            None => {
+                let mig_dir = config.migration_dir()?;
+                search_for_migrations(&mig_dir)?.into_iter()
+                    .map(|fm| fm.boxed()).collect()
+            }
+        };
+        match Self::next_available(&self.direction, migrations.as_slice(), config.applied.as_slice())? {
+            None => bail_fmt!(ErrorKind::MigrationComplete, "No un-applied `{}` migrations found", self.direction),
+            Some(next) => {
+                self.print(&format!("Applying[{}]: {}", self.direction, next.description(&self.direction)));
+
+                if self.fake {
+                    self.println("  ✓ (fake)");
+                } else {
+                    match Self::run_migration(config, &self.direction, next) {
+                        Ok(_) => self.println("  ✓"),
+                        Err(ref e) => {
+                            self.println("");
+                            if self.force {
+                                self.println(
+                                    &format!(" ** Error ** (Continuing because `--force` flag was specified)\n ** {}", e)
+                                    );
+                            } else {
+                                bail_fmt!(ErrorKind::Migration, "Migration was unsucessful...\n{}", e);
+                            }
+                        }
+                    };
+                }
+
+                let mig_tag = next.tag();
+                match self.direction {
+                    Direction::Up => {
+                        config.insert_migration_tag(&mig_tag)?;
+                    }
+                    Direction::Down => {
+                        config.delete_migration_tag(&mig_tag)?;
+                    }
+                }
+            }
+        };
+
+        let config = config.reload()?;
+
+        if self.all {
+            let res = self.apply_migration(&config);
+            match res {
+                Ok(_) => (),
+                Err(error) => {
+                    if !error.is_migration_complete() { return Err(error) }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -454,109 +572,6 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
     // sort by timestamps chronologically
     migrations.sort_by(|a, b| a.stamp.unwrap().cmp(&b.stamp.unwrap()));
     Ok(migrations)
-}
-
-
-/// Return the next available up or down migration
-fn next_available<'a>(direction: &Direction, available: &'a [Box<Migratable>], applied: &[String]) -> Result<Option<&'a Box<Migratable>>> {
-    Ok(match *direction {
-        Direction::Up => {
-            for mig in available {
-                let tag = mig.tag();
-                if !applied.contains(&tag) {
-                    return Ok(Some(mig))
-                }
-            }
-            None
-        }
-        Direction::Down => {
-            match applied.last() {
-                Some(tag) => {
-                    let mig = available.iter().rev().find(|m| &m.tag() == tag);
-                    match mig {
-                        None => bail_fmt!(ErrorKind::MigrationNotFound, "Tag not found: {}", tag),
-                        Some(mig) => Some(mig),
-                    }
-                }
-                None => None,
-            }
-        }
-    })
-}
-
-
-/// Apply the migration in the specified direction
-fn run_migration(config: &Config, direction: &Direction,
-                 migration: &Box<Migratable>) -> std::result::Result<(), Box<std::error::Error>> {
-    let db_kind = config.settings.inner.db_kind();
-    Ok(match *direction {
-        Direction::Up => {
-            migration.apply_up(db_kind, config)?;
-        }
-        Direction::Down => {
-            migration.apply_down(db_kind, config)?;
-        }
-    })
-}
-
-
-/// Try applying the next available migration in the specified `Direction`
-fn apply_migration(config: &Config, direction: &Direction,
-                       force: bool, fake: bool, all: bool) -> Result<()> {
-    let migrations = match config.migrations {
-        Some(ref migrations) => migrations.clone(),
-        None => {
-            let mig_dir = config.migration_dir()?;
-            search_for_migrations(&mig_dir)?.into_iter()
-                .map(|fm| fm.boxed()).collect()
-        }
-    };
-    match next_available(&direction, migrations.as_slice(), config.applied.as_slice())? {
-        None => bail_fmt!(ErrorKind::MigrationComplete, "No un-applied `{}` migrations found", direction),
-        Some(next) => {
-            print_flush!("Applying: {}", next.description(&direction));
-
-            if fake {
-                println!("  ✓ (fake)");
-            } else {
-                // match runner(config, next.to_str().unwrap()) {
-                match run_migration(config, &direction, next) {
-                    Ok(_) => println!("  ✓"),
-                    Err(ref e) => {
-                        println!();
-                        if force {
-                            println!(" ** Error ** (Continuing because `--force` flag was specified)\n ** {}", e);
-                        } else {
-                            bail_fmt!(ErrorKind::Migration, "Migration was unsucessful...\n{}", e);
-                        }
-                    }
-                };
-            }
-
-            let mig_tag = next.tag();
-            match *direction {
-                Direction::Up => {
-                    config.insert_migration_tag(&mig_tag)?;
-                }
-                Direction::Down => {
-                    config.delete_migration_tag(&mig_tag)?;
-                }
-            }
-        }
-    };
-
-    let config = config.reload()?;
-
-    if all {
-        let res = apply_migration(&config, direction, force, fake, all);
-        match res {
-            Ok(_) => (),
-            Err(error) => {
-                if !error.is_migration_complete() { return Err(error) }
-            }
-        }
-    }
-    Ok(())
 }
 
 
