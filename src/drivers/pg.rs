@@ -188,7 +188,7 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
 
 
 #[cfg(not(feature="d-postgres"))]
-pub fn run_migration_str(_conn_str: &str, _stmt: &str) -> Result<connection::markers::PostgresqlFeatureRequired> {
+pub fn run_migration_str(_conn_str: &str, _stmt: &str) -> Result<connection::markers::PostgresFeatureRequired> {
     panic!("\n** Migrant ERROR: `d-postgres` feature required **");
 }
 

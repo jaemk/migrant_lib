@@ -30,7 +30,7 @@ Note: No features are enabled by default
 - File migrations can be either read from files at runtime or embedded in your executable at compile time
   (using [`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html)).
 - Migration tags must all be unique and may only contain the characters `[a-z0-9-]`.
-- Function migrations must have the signature `fn(DbConn) -> Result<(), Box<std::error::Error>>`.
+- Function migrations must have the signature `fn(ConnConfig) -> Result<(), Box<std::error::Error>>`.
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
@@ -43,12 +43,12 @@ Note: No features are enabled by default
 # extern crate migrant_lib;
 # fn run() -> Result<(), Box<std::error::Error>> {
 # let mut config = migrant_lib::Config::from_settings_file("path")?;
-fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
     print!(" Up!");
     Ok(())
 }
 
-fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
     print!(" Down!");
     Ok(())
 }
@@ -137,13 +137,11 @@ mod connection;
 pub mod config;
 pub mod migration;
 
-pub mod types;
-
 pub use errors::*;
 pub use migratable::Migratable;
 pub use config::{Config, Settings};
 pub use migration::{FileMigration, EmbeddedMigration, FnMigration};
-pub use connection::DbConn;
+pub use connection::ConnConfig;
 
 
 static CONFIG_FILE: &'static str = "Migrant.toml";

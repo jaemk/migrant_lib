@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use drivers;
 use migratable::Migratable;
 use config::Config;
-use connection::DbConn;
+use connection::ConnConfig;
 use {DbKind, invalid_tag, Direction, DT_FORMAT};
 use errors::*;
 
@@ -282,8 +282,8 @@ pub struct FnMigration<T, U> {
 }
 
 impl<T, U> FnMigration<T, U>
-    where T: 'static + Clone + Fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>,
-          U: 'static + Clone + Fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>
+    where T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
+          U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>
 {
     /// Create a new `FnMigration` with the given tag
     ///
@@ -301,7 +301,7 @@ impl<T, U> FnMigration<T, U>
 
     /// Function to use for `up` migrations
     ///
-    /// Function must have the signature `fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>`.
+    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>`.
     pub fn up(&mut self, f_up: T) -> &mut Self {
         self.up = Some(f_up);
         self
@@ -309,7 +309,7 @@ impl<T, U> FnMigration<T, U>
 
     /// Function to use for `down` migrations
     ///
-    /// Function must have the signature `fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>`.
+    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>`.
     pub fn down(&mut self, f_down: U) -> &mut Self {
         self.down = Some(f_down);
         self
@@ -322,12 +322,12 @@ impl<T, U> FnMigration<T, U>
 }
 
 impl<T, U> Migratable for FnMigration<T, U>
-    where T: 'static + Clone + Fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>,
-          U: 'static + Clone + Fn(DbConn) -> std::result::Result<(), Box<std::error::Error>>
+    where T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
+          U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>
 {
     fn apply_up(&self, _: DbKind, config: &Config) -> std::result::Result<(), Box<::std::error::Error>> {
         if let Some(ref up) = self.up {
-            up(DbConn::new(config))?;
+            up(ConnConfig::new(config))?;
         } else {
             print_flush!("(empty) ...");
         }
@@ -336,7 +336,7 @@ impl<T, U> Migratable for FnMigration<T, U>
 
     fn apply_down(&self, _: DbKind, config: &Config) -> std::result::Result<(), Box<::std::error::Error>> {
         if let Some(ref down) = self.down {
-            down(DbConn::new(config))?;
+            down(ConnConfig::new(config))?;
         } else {
             print_flush!("(empty) ...");
         }

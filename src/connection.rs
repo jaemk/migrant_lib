@@ -1,74 +1,56 @@
 ///! Database migration connection
-use {Config};
+use {Config, DbKind};
 use errors::*;
-
-#[cfg(feature="d-postgres")]
-use postgres;
-
-#[cfg(feature="d-sqlite")]
-use rusqlite;
-
-#[cfg(feature="d-mysql")]
-use mysql;
 
 
 #[allow(dead_code)]
 pub mod markers {
-    pub struct PostgresqlFeatureRequired;
-    pub struct SqliteFeatureRequired;
+    pub struct PostgresFeatureRequired;
     pub struct MySQLFeatureRequired;
+    pub struct PostgresOrMySQLFeatureRequired;
+    pub struct SqliteFeatureRequired;
 }
 #[allow(unused_imports)]
 use self::markers::*;
 
 
-/// Database connection wrapper
+/// Database connection information
 #[allow(dead_code)]
-pub struct DbConn<'a> {
+pub struct ConnConfig<'a> {
     config: &'a Config,
 }
-impl<'a> DbConn<'a> {
-    pub fn new(config: &'a Config) -> Self {
+impl<'a> ConnConfig<'a> {
+    pub(crate) fn new(config: &'a Config) -> Self {
         Self { config }
     }
 
-    /// Generate a `postgres::Connection`, `d-postgres` feature required
-    #[cfg(not(feature="d-postgres"))]
-    pub fn pg_connection(&self) -> Result<PostgresqlFeatureRequired> {
+    /// Return the database type
+    pub fn database_type(&self) -> DbKind {
+        self.config.database_type()
+    }
+
+    /// Return a connection string for postgres or mysql
+    #[cfg(not(any(feature="d-postgres", feature="d-mysql")))]
+    pub fn connect_string(&self) -> Result<PostgresOrMySQLFeatureRequired> {
         unimplemented!()
     }
 
-    /// Generate a `postgres::Connection`, `d-postgres` feature required
-    #[cfg(feature="d-postgres")]
-    pub fn pg_connection(&self) -> Result<postgres::Connection> {
-        let conn_str = self.config.connect_string()?;
-        Ok(postgres::Connection::connect(conn_str, postgres::TlsMode::None)?)
+    /// Return a connection string for postgres or mysql
+    #[cfg(any(feature="d-postgres", feature="d-mysql"))]
+    pub fn connect_string(&self) -> Result<String> {
+        self.config.connect_string()
     }
 
-    /// Generate a `mysql::Conn`, `d-mysql` feature required
-    #[cfg(not(feature="d-mysql"))]
-    pub fn mysql_connection(&self) -> Result<MySQLFeatureRequired> {
-        unimplemented!()
-    }
-
-    /// Generate a `mysql::Conn`, `d-mysql` feature required
-    #[cfg(feature="d-mysql")]
-    pub fn mysql_connection(&self) -> Result<mysql::Conn> {
-        let conn_str = self.config.connect_string()?;
-        Ok(mysql::Conn::new(conn_str)?)
-    }
-
-    /// Generate a `rusqlite::Connection`, `d-sqlite` feature required
+    /// Return a sqlite database path
     #[cfg(not(feature="d-sqlite"))]
-    pub fn sqlite_connection(&self) -> Result<SqliteFeatureRequired> {
+    pub fn database_path(&self) -> Result<SqliteFeatureRequired> {
         unimplemented!()
     }
 
-    /// Generate a `rusqlite::Connection`, `d-sqlite` feature required
+    /// Return a sqlite database path
     #[cfg(feature="d-sqlite")]
-    pub fn sqlite_connection(&self) -> Result<rusqlite::Connection> {
-        let db_path = self.config.database_path()?;
-        Ok(rusqlite::Connection::open(db_path)?)
+    pub fn database_path(&self) -> Result<::std::path::PathBuf> {
+        self.config.database_path()
     }
 }
 

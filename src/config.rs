@@ -727,11 +727,11 @@ impl Config {
     ///     use super::*;
     ///     pub struct Custom;
     ///     impl Custom {
-    ///         pub fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+    ///         pub fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
     ///             print!(" <[Up!]>");
     ///             Ok(())
     ///         }
-    ///         pub fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+    ///         pub fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
     ///             print!(" <[Down!]>");
     ///             Ok(())
     ///         }

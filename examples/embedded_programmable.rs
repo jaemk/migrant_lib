@@ -4,10 +4,10 @@ instead of being discovered from the file system. This also provides the
 option of creating programmable migrations in rust!
 
 This example shows configuration/functionality for sqlite. Using postgres or mysql
-would require using the appropriate `Settings::configure_<db>` method and enabling
-the corresponding database feature.
+would require using the appropriate `Settings::configure_<db>` method, enabling
+the corresponding database feature, and importing the required database connection crate.
 
-NOTE: The feature-gated `AddUserData` `impl`s are only required here so the example
+NOTE: The feature-gated `rusqlite` and `AddUserData` impl's are only required here so the example
       will compile when running tests with and without features. In regular usage,
       the `cfg`s are not required since the specified database feature should be
       enabled in your `Cargo.toml` entry.
@@ -16,10 +16,12 @@ This should be run with `cargo run --example embedded_programmable --features d-
 
 */
 extern crate migrant_lib;
+#[cfg(feature="d-sqlite")]
+extern crate rusqlite;
 
 use std::env;
 use migrant_lib::{
-    Config, Settings, Migrator, Direction,
+    Config, Settings, ConnConfig, Migrator, Direction,
     FileMigration, EmbeddedMigration, FnMigration,
 };
 
@@ -31,11 +33,11 @@ mod migrations {
     /// NOTE: This cfg'd impl needs to exist so tests compile
     #[cfg(not(feature="d-sqlite"))]
     impl AddUserData {
-        pub fn up(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+        pub fn up(_: ConnConfig) -> Result<(), Box<std::error::Error>> {
             print!(" <[Up] Hint: Use the sqlite database specific feature!>");
             Ok(())
         }
-        pub fn down(_: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
+        pub fn down(_: ConnConfig) -> Result<(), Box<std::error::Error>> {
             print!(" <[Down] Hint: Use the sqlite database specific feature!>");
             Ok(())
         }
@@ -43,8 +45,9 @@ mod migrations {
 
     #[cfg(feature="d-sqlite")]
     impl AddUserData {
-        pub fn up(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            let conn = conn.sqlite_connection()?;
+        pub fn up(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+            let db_path = config.database_path()?;
+            let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for (i, name) in people.iter().enumerate() {
                 conn.execute("insert into users (id, name) values (?1, ?2);",
@@ -52,8 +55,9 @@ mod migrations {
             }
             Ok(())
         }
-        pub fn down(conn: migrant_lib::DbConn) -> Result<(), Box<std::error::Error>> {
-            let conn = conn.sqlite_connection()?;
+        pub fn down(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+            let db_path = config.database_path()?;
+            let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for name in &people {
                 conn.execute("delete from users where name = ?1", &[name])?;
