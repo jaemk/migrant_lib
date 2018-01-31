@@ -282,9 +282,8 @@ impl Migratable for EmbeddedMigration {
 
 /// Define a programmable migration
 ///
-/// `FnMigration`s have full database access. Database specific
-/// features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use this functionality.
-/// A full re-export of database specific crates are available in `migrant_lib::types`.
+/// `FnMigration`s are provided a `ConnConfig` instance and given free rein to do as they please.
+/// Database specific features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use this functionality.
 #[derive(Clone, Debug)]
 pub struct FnMigration<T, U> {
     pub tag: String,
