@@ -7,10 +7,9 @@ This example shows configuration/functionality for sqlite. Using postgres or mys
 would require using the appropriate `Settings::configure_<db>` method, enabling
 the corresponding database feature, and importing the required database connection crate.
 
-NOTE: The feature-gated `rusqlite` and `AddUserData` impl's are only required here so the example
-      will compile when running tests with and without features. In regular usage,
-      the `cfg`s are not required since the specified database feature should be
-      enabled in your `Cargo.toml` entry.
+NOTE: The feature-gated are only required here so the example will compile when running
+      tests with and without features. In regular usage, the `cfg`s are not required since
+      the specified database feature should be enabled in your `Cargo.toml` entry.
 
 This should be run with `cargo run --example embedded_programmable --features d-sqlite`
 
@@ -19,31 +18,20 @@ extern crate migrant_lib;
 #[cfg(feature="d-sqlite")]
 extern crate rusqlite;
 
+#[cfg(feature="d-sqlite")]
 use std::env;
+#[cfg(feature="d-sqlite")]
 use migrant_lib::{
     Config, Settings, ConnConfig, Migrator, Direction,
     FileMigration, EmbeddedMigration, FnMigration,
 };
 
 
+#[cfg(feature="d-sqlite")]
 mod migrations {
     use super::*;
     pub struct AddUserData;
 
-    /// NOTE: This cfg'd impl needs to exist so tests compile
-    #[cfg(not(feature="d-sqlite"))]
-    impl AddUserData {
-        pub fn up(_: ConnConfig) -> Result<(), Box<std::error::Error>> {
-            print!(" <[Up] Hint: Use the sqlite database specific feature!>");
-            Ok(())
-        }
-        pub fn down(_: ConnConfig) -> Result<(), Box<std::error::Error>> {
-            print!(" <[Down] Hint: Use the sqlite database specific feature!>");
-            Ok(())
-        }
-    }
-
-    #[cfg(feature="d-sqlite")]
     impl AddUserData {
         pub fn up(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
             let db_path = config.database_path()?;
@@ -68,6 +56,7 @@ mod migrations {
 }
 
 
+#[cfg(feature="d-sqlite")]
 fn run() -> Result<(), Box<std::error::Error>> {
     let path = env::current_dir()?;
     let path = path.join("db/embedded_example.db");
@@ -129,6 +118,13 @@ fn run() -> Result<(), Box<std::error::Error>> {
 
     let config = config.reload()?;
     migrant_lib::list(&config)?;
+    Ok(())
+}
+
+
+#[cfg(not(feature="d-sqlite"))]
+fn run() -> Result<(), Box<std::error::Error>> {
+    Err("d-sqlite database feature required")?;
     Ok(())
 }
 
