@@ -7,7 +7,7 @@ This example shows configuration/functionality for sqlite. Using postgres or mys
 would require using the appropriate `Settings::configure_<db>` method, enabling
 the corresponding database feature, and importing the required database connection crate.
 
-NOTE: The feature-gated are only required here so the example will compile when running
+NOTE: The feature-gates are only required here so the example will compile when running
       tests with and without features. In regular usage, the `cfg`s are not required since
       the specified database feature should be enabled in your `Cargo.toml` entry.
 
