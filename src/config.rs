@@ -291,6 +291,10 @@ impl SqliteSettingsBuilder {
     }
 
     /// Set directory to look for migration files.
+    ///
+    /// This can be an absolute or relative path. An absolute path should be preferred.
+    /// If a relative path is provided, the path will be assumed relative to either the
+    /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
         let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
@@ -375,6 +379,10 @@ impl PostgresSettingsBuilder {
     }
 
     /// Set directory to look for migration files.
+    ///
+    /// This can be an absolute or relative path. An absolute path should be preferred.
+    /// If a relative path is provided, the path will be assumed relative to either the
+    /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
         let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
@@ -459,6 +467,10 @@ impl MySqlSettingsBuilder {
     }
 
     /// Set directory to look for migration files.
+    ///
+    /// This can be an absolute or relative path. An absolute path should be preferred.
+    /// If a relative path is provided, the path will be assumed relative to either the
+    /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
         let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
@@ -1007,15 +1019,47 @@ impl Config {
     }
 
     /// Return the absolute path to the directory containing migration folders
+    ///
+    /// The location returned is dependent on whether an absolute or relative path
+    /// was provided to `migration_location` in either a settings file or settings builder.
+    /// If an absolute path was provided, that same path is returned.
+    /// If a relative path was provided, the path returned will be relative
+    /// to either the settings file's directory if a settings file exists, or
+    /// the current directory.
+    #[deprecated(since="0.18.1", note="renamed to `migration_location`")]
     pub fn migration_dir(&self) -> Result<PathBuf> {
         let path = self.settings.inner.migration_location()
-            .ok_or_else(|| format_err!(ErrorKind::Config, "Migration location not specified"))?;
+            .unwrap_or_else(|| PathBuf::from("migrations"));
         Ok(if path.is_absolute() { path } else {
-            let spath = self.settings_path.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Settings path not specified"))?;
-            let spath = spath.parent()
-                .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", spath))?;
-            spath.join(path)
+            let cur_dir = env::current_dir()?;
+            let base_path = match self.settings_path.as_ref() {
+                Some(s_path) => s_path.parent()
+                    .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", s_path))?,
+                None => &cur_dir,
+            };
+            base_path.join(path)
+        })
+    }
+
+    /// Return the absolute path to the directory containing migration folders
+    ///
+    /// The location returned is dependent on whether an absolute or relative path
+    /// was provided to `migration_location` in either a settings file or settings builder.
+    /// If an absolute path was provided, that same path is returned.
+    /// If a relative path was provided, the path returned will be relative
+    /// to either the settings file's directory if a settings file exists, or
+    /// the current directory.
+    pub fn migration_location(&self) -> Result<PathBuf> {
+        let path = self.settings.inner.migration_location()
+            .unwrap_or_else(|| PathBuf::from("migrations"));
+        Ok(if path.is_absolute() { path } else {
+            let cur_dir = env::current_dir()?;
+            let base_path = match self.settings_path.as_ref() {
+                Some(s_path) => s_path.parent()
+                    .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", s_path))?,
+                None => &cur_dir,
+            };
+            base_path.join(path)
         })
     }
 

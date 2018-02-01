@@ -429,7 +429,7 @@ impl Migrator {
         let migrations = match config.migrations {
             Some(ref migrations) => migrations.clone(),
             None => {
-                let mig_dir = config.migration_dir()?;
+                let mig_dir = config.migration_location()?;
                 search_for_migrations(&mig_dir)?.into_iter()
                     .map(|fm| fm.boxed()).collect()
             }
@@ -576,7 +576,7 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
 pub fn list(config: &Config) -> Result<()> {
     let available = match config.migrations {
         None => {
-            let mig_dir = config.migration_dir()?;
+            let mig_dir = config.migration_location()?;
             let migs = search_for_migrations(&mig_dir)?
                 .into_iter()
                 .map(|file_mig| file_mig.boxed())
@@ -628,7 +628,7 @@ pub fn new(config: &Config, tag: &str) -> Result<()> {
     let dt_string = now.format(DT_FORMAT).to_string();
     let folder = format!("{stamp}_{tag}", stamp=dt_string, tag=tag);
 
-    let mig_dir = config.migration_dir()?.join(folder);
+    let mig_dir = config.migration_location()?.join(folder);
 
     fs::create_dir_all(&mig_dir)?;
 
@@ -730,7 +730,7 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
 /// follow the expected timestamp format), NOT those managed directly in source
 /// with `Config::use_migrations`.
 pub fn edit(config: &Config, tag: &str, up_down: &Direction) -> Result<()> {
-    let mig_dir = config.migration_dir()?;
+    let mig_dir = config.migration_location()?;
 
     let available = search_for_migrations(&mig_dir)?;
     if available.is_empty() {
