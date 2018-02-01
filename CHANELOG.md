@@ -9,6 +9,20 @@
 
 ----
 
+## [0.18.1]
+### Added
+
+### Changed
+- Rename `Config::migration_dir` to `Config::migration_location`
+- Update how `Config::migration_location` resolves relative paths
+    - Fall back to `env::current_dir` if relative and no settings file is present
+- Update all `migration_location` docs to note how absolute/relative paths are handled
+
+### Removed
+- Remove crate-doc/readme note about re-exported database crates
+
+----
+
 ## [0.18.0]
 ### Added
 - Add option to `Migrator` for suppressing output
