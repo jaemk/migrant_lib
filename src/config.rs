@@ -815,9 +815,9 @@ impl Config {
         Ok(())
     }
 
-    /// Do a full reload of the configuration file (only if a settings file is being used) and
-    /// query the database to load applied migrations, keeping track of
-    /// manually specified `migrations`.
+    /// Queries the database to reload the current applied migrations.
+    /// If the `Config` was initialized from a settings file, the settings
+    /// will also be reloaded from the file. Returns a new `Config` instance.
     pub fn reload(&self) -> Result<Config> {
         let mut config = match self.settings_path.as_ref() {
             Some(path) => Config::from_settings_file(path)?,
@@ -829,8 +829,8 @@ impl Config {
         Ok(config)
     }
 
-    /// Load config file from the given path without querying the database
-    /// to check for applied migrations
+    /// Initialize a `Config` from a settings file at the given path.
+    /// This does not query the database for applied migrations.
     pub fn from_settings_file<T: AsRef<Path>>(path: T) -> Result<Config> {
         let path = path.as_ref();
         let settings = Settings::from_file(path)?;
@@ -844,6 +844,7 @@ impl Config {
 
     /// Initialize a `Config` using an explicitly created `Settings` object.
     /// This alleviates the need for a settings file.
+    /// This does not query the database for applied migrations.
     ///
     /// ```rust,no_run
     /// # extern crate migrant_lib;
