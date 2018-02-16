@@ -314,6 +314,7 @@ pub struct Migrator {
     fake: bool,
     all: bool,
     show_output: bool,
+    swallow_completion: bool,
 }
 
 impl Migrator {
@@ -326,6 +327,7 @@ impl Migrator {
             fake: false,
             all: false,
             show_output: true,
+            swallow_completion: false,
         }
     }
 
@@ -362,12 +364,29 @@ impl Migrator {
         self
     }
 
+    /// Don't return any `ErrorKind::MigrationComplete` errors when running `Migrator::apply`
+    ///
+    /// All other errors will still be returned
+    pub fn swallow_completion(&mut self, swallow_completion: bool) -> &mut Self {
+        self.swallow_completion = swallow_completion;
+        self
+    }
+
     /// Apply migrations using current configuration
     ///
     /// Returns an `ErrorKind::MigrationComplete` if all migrations in the given
-    /// direction have already been applied.
+    /// direction have already been applied, unless `swallow_completion` is set to `true`.
     pub fn apply(&self) -> Result<()> {
-        self.apply_migration(&self.config)
+        let res = self.apply_migration(&self.config);
+        if self.swallow_completion {
+            Ok(match res {
+                Ok(_) => (),
+                Err(ref e) if e.is_migration_complete() => (),
+                Err(e) => return Err(e),
+            })
+        } else {
+            res
+        }
     }
 
     /// Return the next available up or down migration

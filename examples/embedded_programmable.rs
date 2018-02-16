@@ -94,27 +94,21 @@ fn run() -> Result<(), Box<std::error::Error>> {
     let config = config.reload()?;
 
     println!("Applying migrations...");
-    let res = Migrator::with_config(&config)
+    Migrator::with_config(&config)
         .all(true)
         .show_output(false)
-        .apply();
-    match res {
-        Err(ref e) if e.is_migration_complete() => (),
-        res => res?,
-    }
+        .swallow_completion(true)
+        .apply()?;
 
     let config = config.reload()?;
     migrant_lib::list(&config)?;
 
     println!("\nUnapplying migrations...");
-    let res = Migrator::with_config(&config)
+    Migrator::with_config(&config)
         .all(true)
         .direction(Direction::Down)
-        .apply();
-    match res {
-        Err(ref e) if e.is_migration_complete() => (),
-        res => res?,
-    }
+        .swallow_completion(true)
+        .apply()?;
 
     let config = config.reload()?;
     migrant_lib::list(&config)?;
