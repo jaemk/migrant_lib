@@ -9,6 +9,17 @@
 
 ----
 
+## [0.18.2]
+### Added
+- Add an option (`swallow_completion`) to `Migrator` to suppress `ErrorKind::MigrationComplete` errors
+  returned by `Migrator::apply`.
+
+### Changed
+
+### Removed
+
+----
+
 ## [0.18.1]
 ### Added
 
