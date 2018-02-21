@@ -21,6 +21,10 @@ use errors::*;
 /// *Note:* Files defined in this migration must be present at run-time.
 /// File paths can be absolute or relative. Relative file paths are relative
 /// to the directory from which the program is run.
+///
+/// *Note:* SQL statements are batch executed as is. If you want your migration
+/// to happen atomically in a transaction you should manually wrap your statements
+/// in a transaction (`begin transaction; ... commit;`).
 #[derive(Clone, Debug)]
 pub struct FileMigration {
     pub tag: String,
@@ -148,6 +152,10 @@ impl Migratable for FileMigration {
 /// the executable so no files are required at run-time. The
 /// standard [`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html) macro
 /// can be used to embed contents of files, or a string literal can be provided.
+///
+/// *Note:* SQL statements are batch executed as is. If you want your migration
+/// to happen atomically in a transaction you should manually wrap your statements
+/// in a transaction (`begin transaction; ... commit;`).
 ///
 /// Database specific features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use
 /// this functionality.
