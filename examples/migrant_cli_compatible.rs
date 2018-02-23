@@ -5,6 +5,12 @@ in production environments.
 
 Select functionality can be copied from https://github.com/jaemk/migrant/blob/master/src/main.rs
 
+This example shows using `migrant_lib` in a CLI compatible manner in environments where
+the database configuration file (`Migrant.toml`) and migration files are available to run-time.
+For CLI compatibility and embedded capabilities, see the
+[embedded_cli_compatible](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_cli_compatible.rs)
+example.
+
 Run with: `cargo run --example migrant_cli_compatible [--features d-sqlite]`
 Note: Running without features will use the corresponding database shell commands.
       Use the respective `--features` to use the actual database driver libraries (`d-sqlite`, `d-postgres`, `d-mysql`)

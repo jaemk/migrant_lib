@@ -38,11 +38,11 @@ fn run() -> Result<(), Box<std::error::Error>> {
 
     // Define migrations
     config.use_migrations(&[
-        EmbeddedMigration::with_tag("create-users-table")?
+        EmbeddedMigration::with_tag("create-users-table")
             .up("create table users (id integer primary key, name text);")
             .down("drop table users;")
             .boxed(),
-        EmbeddedMigration::with_tag("create-places-table")?
+        EmbeddedMigration::with_tag("create-places-table")
             .up("create table places (id integer primary key, address text);")
             .down("drop table places;")
             .boxed(),

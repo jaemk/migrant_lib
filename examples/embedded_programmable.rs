@@ -69,19 +69,19 @@ fn run() -> Result<(), Box<std::error::Error>> {
 
     // Define migrations
     config.use_migrations(&[
-        EmbeddedMigration::with_tag("create-users-table")?
+        EmbeddedMigration::with_tag("create-users-table")
             .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
             .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
             .boxed(),
-        FnMigration::with_tag("add-user-data")?
+        FnMigration::with_tag("add-user-data")
             .up(migrations::AddUserData::up)
             .down(migrations::AddUserData::down)
             .boxed(),
-        FileMigration::with_tag("create-places-table")?
+        FileMigration::with_tag("create-places-table")
             .up("migrations/embedded/create_places_table/up.sql")?
             .down("migrations/embedded/create_places_table/down.sql")?
             .boxed(),
-        EmbeddedMigration::with_tag("alter-places-table-add-address")?
+        EmbeddedMigration::with_tag("alter-places-table-add-address")
             .up("alter table places add column address text;")
             .down("create table new_places (name text);\
                    insert into new_places select name from places;\
