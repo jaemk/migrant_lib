@@ -52,7 +52,7 @@ fn run() -> Result<(), migrant_lib::Error> {
         }
         Some(p) => Config::from_settings_file(&p)?
     };
-    config.reload()?;
+    let config = config.reload()?;
 
     println!("Applying all migrations...");
     migrant_lib::Migrator::with_config(&config)
