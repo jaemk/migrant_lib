@@ -14,8 +14,9 @@ use chrono::{self, TimeZone};
 
 use drivers;
 use {
-    Migratable, encode, prompt, open_file_in_fg, write_to_path, invalid_tag, DbKind,
-    FULL_TAG_RE, DT_FORMAT, CONFIG_FILE,
+    Migratable, encode, prompt, open_file_in_fg, write_to_path, DbKind,
+    invalid_full_tag, invalid_optional_stamp_tag,
+    DT_FORMAT, CONFIG_FILE,
     PG_CONFIG_TEMPLATE, SQLITE_CONFIG_TEMPLATE, MYSQL_CONFIG_TEMPLATE,
 };
 use errors::*;
@@ -713,17 +714,15 @@ pub struct Config {
     pub(crate) settings_path: Option<PathBuf>,
     pub(crate) applied: Vec<String>,
     pub(crate) migrations: Option<Vec<Box<Migratable>>>,
+    pub(crate) cli_compatible: bool,
 }
 impl Config {
     /// Define an explicit set of `Migratable` migrations to use.
     ///
     /// The order of definition is the order in which they will be applied.
     ///
-    /// When using explicit migrations, make sure they are defined on the `Config`
-    /// instance before applied migrations are loaded from the database. This is
-    /// required because tag format requirements are stricter for implicit
-    /// (file-system based / `migrant` CLI compatible) migrations, requiring a timestamp to
-    /// maintain a deterministic order.
+    /// **Note:** When using explicit migrations, make sure any toggling of `Config::use_cli_compatible_tags`
+    /// happens **before** the call to `Config::use_migrations`.
     ///
     /// # Example
     ///
@@ -755,15 +754,15 @@ impl Config {
     /// let mut config = Config::from_settings_file(&p)?;
     /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
     /// config.use_migrations(&[
-    ///     EmbeddedMigration::with_tag("create-users-table")?
+    ///     EmbeddedMigration::with_tag("create-users-table")
     ///         .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
     ///         .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
     ///         .boxed(),
-    ///     FileMigration::with_tag("create-places-table")?
+    ///     FileMigration::with_tag("create-places-table")
     ///         .up("migrations/embedded/create_places_table/up.sql")?
     ///         .down("migrations/embedded/create_places_table/down.sql")?
     ///         .boxed(),
-    ///     FnMigration::with_tag("custom")?
+    ///     FnMigration::with_tag("custom")
     ///         .up(migrations::Custom::up)
     ///         .down(migrations::Custom::down)
     ///         .boxed(),
@@ -782,6 +781,16 @@ impl Config {
         let mut migs = Vec::with_capacity(migrations.len());
         for mig in migrations {
             let tag = mig.tag();
+            if self.cli_compatible {
+                if invalid_full_tag(&tag) {
+                    bail_fmt!(ErrorKind::TagError, "When `cli_compatible=true` tags must be timestamped, \
+                                                    following: `[0-9]{{14}}_[a-z0-9-]+`. Found tag: `{}`", tag)
+                }
+            } else if invalid_optional_stamp_tag(&tag) {
+                bail_fmt!(ErrorKind::TagError, "When `cli_compatible=false` (default) tags may only contain, \
+                                                `[a-z0-9-]` and may be optionally prefixed with a timestamp \
+                                                following: `([0-9]{{14}}_)?[a-z0-9-]+`. Found tag: `{}`", tag)
+            }
             if set.contains(&tag) {
                 bail_fmt!(ErrorKind::TagError, "Tags must be unique. Found duplicate: {}", tag)
             }
@@ -797,25 +806,53 @@ impl Config {
         self.migrations.is_some()
     }
 
+
+    /// Toggle cli compatible tag validation.
+    ///
+    /// **Note:** Make sure any calls to `Config::use_cli_compatible_tags` happen
+    /// **before** any calls to `Config::reload` or `Config::use_migrations` since
+    /// the valid tag format is altered.
+    ///
+    /// Defaults to `false`. When `cli_compatible` is set to `true`, migration
+    /// tags will be validated in a manner compatible with the migrant CLI tool.
+    /// Tags must be prefixed with a timestamp, following: `[0-9]{14}_[a-z0-9-]+`.
+    /// When not enabled (the default), tags may only contain `[a-z0-9-]+` and
+    /// the migrant CLI tool will not be able to identify tags.
+    pub fn use_cli_compatible_tags(&mut self, compat: bool) {
+        self.cli_compatible = compat;
+    }
+
+
+    /// Check the current cli compatibility
+    pub fn is_cli_compatible(&self) -> bool {
+        self.cli_compatible
+    }
+
+
     /// Check that migration tags conform to naming requirements.
-    /// If migrations are explicitly defined (with `use_migrations`), then
-    /// tags may only contain [a-z0-9-]. If migrations are managed by `migrant`,
-    /// not specified with `use_migrations` and instead created by `migrant_lib::new`,
-    /// then they must follow [0-9]{14}_[a-z0-9-] (<timestamp>_<name>).
+    /// If CLI compatibility is enabled, then tags must be prefixed with a timestamp
+    /// following: `[0-9]{14}_[a-z0-9-]+` which is the format generated by the migrant
+    /// CLI tool and `migrant_lib::new`. When CLI compatibility is disabled (default).
+    /// tags may only contain `[a-z0-9-]`, but can still be optionally prefixed with
+    /// a timestamp following: `([0-9]{14}_)?[a-z0-9-]+`.
     fn check_saved_tag(&self, tag: &str) -> Result<()> {
-        if self.is_explicit() {
-            if invalid_tag(tag) {
+        if self.cli_compatible {
+            if invalid_full_tag(tag) {
                 bail_fmt!(ErrorKind::Migration, "Found a non-conforming tag in the database: `{}`. \
-                                                 Managed tags may contain [a-z0-9-]", tag)
+                                                 Generated/CLI-compatible tags must follow `[0-9]{{14}}_[a-z0-9-]+`", tag)
             }
-        } else if !FULL_TAG_RE.is_match(&tag) {
+        } else if invalid_optional_stamp_tag(&tag) {
             bail_fmt!(ErrorKind::Migration, "Found a non-conforming tag in the database: `{}`. \
-                                             Generated tags must follow [0-9]{{14}}_[a-z0-9-]", tag)
+                                             Managed/embedded tags may contain `[a-z0-9-]+`", tag)
         }
         Ok(())
     }
 
     /// Queries the database to reload the current applied migrations.
+    ///
+    /// **Note:** Make sure any calls to `Config::use_cli_compatible_tags` happen
+    /// **before** any calls to `Config::reload` since the valid tag format is altered.
+    ///
     /// If the `Config` was initialized from a settings file, the settings
     /// will also be reloaded from the file. Returns a new `Config` instance.
     pub fn reload(&self) -> Result<Config> {
@@ -839,6 +876,7 @@ impl Config {
             settings: settings,
             applied: vec![],
             migrations: None,
+            cli_compatible: false,
         })
     }
 
@@ -871,6 +909,7 @@ impl Config {
             settings_path: None,
             applied: vec![],
             migrations: None,
+            cli_compatible: false,
         }
     }
 
@@ -890,7 +929,7 @@ impl Config {
             self.check_saved_tag(&tag)?;
             tags.push(tag);
         }
-        let tags = if self.is_explicit() { tags } else {
+        let tags = if !self.cli_compatible { tags } else {
             let mut stamped = tags.into_iter().map(|tag| {
                 let stamp = tag.split('_').next()
                     .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}", tag))?;

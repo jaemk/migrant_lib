@@ -12,7 +12,7 @@ use config::Config;
 use connection::ConnConfig;
 #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
 use connection::markers::DatabaseFeatureRequired;
-use {DbKind, invalid_tag, Direction, DT_FORMAT};
+use {DbKind, Direction, DT_FORMAT};
 use errors::*;
 
 
@@ -30,22 +30,17 @@ pub struct FileMigration {
     pub tag: String,
     pub up: Option<PathBuf>,
     pub down: Option<PathBuf>,
-    pub stamp: Option<DateTime<Utc>>,
+    pub(crate) stamp: Option<DateTime<Utc>>,
 }
 impl FileMigration {
     /// Create a new `FileMigration` with a given tag
-    ///
-    /// Tags may contain [a-z0-9-]
-    pub fn with_tag(tag: &str) -> Result<Self> {
-        if invalid_tag(tag) {
-            bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
-        }
-        Ok(Self {
+    pub fn with_tag(tag: &str) -> Self {
+        Self {
             tag: tag.to_owned(),
             up: None,
             down: None,
             stamp: None,
-        })
+        }
     }
 
     fn check_path(path: &Path) -> Result<()> {
@@ -168,7 +163,7 @@ impl Migratable for FileMigration {
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
 /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
-/// EmbeddedMigration::with_tag("create-users-table")?
+/// EmbeddedMigration::with_tag("create-users-table")
 ///     .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
 ///     .down(include_str!("../migrations/embedded/create_users_table/down.sql"));
 /// # Ok(())
@@ -181,7 +176,7 @@ impl Migratable for FileMigration {
 /// # fn main() { run().unwrap(); }
 /// # fn run() -> Result<(), Box<std::error::Error>> {
 /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
-/// EmbeddedMigration::with_tag("create-places-table")?
+/// EmbeddedMigration::with_tag("create-places-table")
 ///     .up("create table places(id integer);")
 ///     .down("drop table places;");
 /// # Ok(())
@@ -195,26 +190,19 @@ pub struct EmbeddedMigration {
 }
 impl EmbeddedMigration {
     /// Create a new `EmbeddedMigration` with the given tag
-    ///
-    /// Tags may contain [a-z0-9-]
     #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
-    pub fn with_tag(_tag: &str) -> Result<DatabaseFeatureRequired> {
+    pub fn with_tag(_tag: &str) -> DatabaseFeatureRequired {
         unimplemented!();
     }
 
     /// Create a new `EmbeddedMigration` with the given tag
-    ///
-    /// Tags may contain [a-z0-9-]
     #[cfg(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql"))]
-    pub fn with_tag(tag: &str) -> Result<Self> {
-        if invalid_tag(tag) {
-            bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
-        }
-        Ok(Self {
+    pub fn with_tag(tag: &str) -> Self {
+        Self {
             tag: tag.to_owned(),
             up: None,
             down: None,
-        })
+        }
     }
 
     /// Static `str` of statements to use for `up` migrations
@@ -290,10 +278,37 @@ impl Migratable for EmbeddedMigration {
 }
 
 
+/// No-op to use with `FnMigration`
+pub fn noop(_: ConnConfig) -> std::result::Result<(), Box<std::error::Error>> { Ok(()) }
+
+
 /// Define a programmable migration
 ///
 /// `FnMigration`s are provided a `ConnConfig` instance and given free rein to do as they please.
 /// Database specific features (`d-postgres`/`d-sqlite`/`d-mysql`) are required to use this functionality.
+///
+/// Note, both an `up` and `down` function must be provided. There is a noop function available
+/// (`migrant_lib::migration::noop`) for convenience.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # extern crate migrant_lib;
+/// # use migrant_lib::{FnMigration, ConnConfig};
+/// # fn main() { run().unwrap(); }
+/// # fn run() -> Result<(), Box<std::error::Error>> {
+/// fn add_data(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+///     // do stuff...
+///     Ok(())
+/// }
+///
+/// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
+/// FnMigration::with_tag("add-user-data")
+///     .up(add_data)
+///     .down(migrant_lib::migration::noop);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct FnMigration<T, U> {
     pub tag: String,
@@ -306,26 +321,19 @@ impl<T, U> FnMigration<T, U>
           U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>
 {
     /// Create a new `FnMigration` with the given tag
-    ///
-    /// Tags may contain [a-z0-9-]
     #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
-    pub fn with_tag(_tag: &str) -> Result<DatabaseFeatureRequired> {
+    pub fn with_tag(_tag: &str) -> DatabaseFeatureRequired {
         unimplemented!();
     }
 
     /// Create a new `FnMigration` with the given tag
-    ///
-    /// Tags may contain [a-z0-9-]
     #[cfg(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql"))]
-    pub fn with_tag(tag: &str) -> Result<Self> {
-        if invalid_tag(tag) {
-            bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
-        }
-        Ok(Self {
+    pub fn with_tag(tag: &str) -> Self {
+        Self {
             tag: tag.to_owned(),
             up: None,
             down: None,
-        })
+        }
     }
 
     /// Function to use for `up` migrations
