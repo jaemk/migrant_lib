@@ -726,6 +726,9 @@ impl Config {
     ///
     /// # Example
     ///
+    /// The following uses a migrant config file for connection configuration and
+    /// explicitly defines migrations with `use_migrations`.
+    ///
     /// ```rust,no_run
     /// extern crate migrant_lib;
     /// use migrant_lib::{
@@ -811,12 +814,12 @@ impl Config {
     ///
     /// **Note:** Make sure any calls to `Config::use_cli_compatible_tags` happen
     /// **before** any calls to `Config::reload` or `Config::use_migrations` since
-    /// the valid tag format is altered.
+    /// this is dependent on the tag format being used.
     ///
     /// Defaults to `false`. When `cli_compatible` is set to `true`, migration
     /// tags will be validated in a manner compatible with the migrant CLI tool.
     /// Tags must be prefixed with a timestamp, following: `[0-9]{14}_[a-z0-9-]+`.
-    /// When not enabled (the default), tags may only contain `[a-z0-9-]+` and
+    /// When not enabled (the default), tag timestamps are optional and
     /// the migrant CLI tool will not be able to identify tags.
     pub fn use_cli_compatible_tags(&mut self, compat: bool) {
         self.cli_compatible = compat;
@@ -851,7 +854,8 @@ impl Config {
     /// Queries the database to reload the current applied migrations.
     ///
     /// **Note:** Make sure any calls to `Config::use_cli_compatible_tags` happen
-    /// **before** any calls to `Config::reload` since the valid tag format is altered.
+    /// **before** any calls to `Config::reload` since this is dependent on the
+    /// tag format being used.
     ///
     /// If the `Config` was initialized from a settings file, the settings
     /// will also be reloaded from the file. Returns a new `Config` instance.
