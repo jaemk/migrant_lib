@@ -1,11 +1,21 @@
 # Changelog
 
-## [Unreleased]
+## [0.19.0]
 ### Added
+- `Config::use_cli_compatible_tags` method to toggle tag validation
+  compatible with the migrant CLI tool
+- `Config::is_cli_compatible` method for checking cli tag compatibility
+- `migration::noop` function to use with `FnMigration`s
+- "embedded_cli_compatible" example - migrant CLI compatibility during
+  development, and embedded migrations for deployment
 
 ### Changed
+- `FnMigration`, `EmbeddedMigration`, `FileMigration` `with_tag` constructors
+  no longer return `Result`s
+- Updated docs describing nuances around cli compatibility
 
 ### Removed
+- `FileMigration.stamp` field is no longer public
 
 ----
 
