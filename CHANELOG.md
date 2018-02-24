@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.19.1]
+### Added
+
+### Changed
+- Give better errors when searching for file migrations and finding
+  migration tags with invalid formats or invalid timestamps
+
+### Removed
+
 ## [0.19.0]
 ### Added
 - `Config::use_cli_compatible_tags` method to toggle tag validation
