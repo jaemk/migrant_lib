@@ -561,15 +561,19 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
     let mut migrations = vec![];
     for (path, migs) in &files {
         let full_name = PathBuf::from(path);
-        let mut full_name = full_name.file_name()
+        let full_name = full_name.file_name()
             .and_then(OsStr::to_str)
-            .ok_or_else(|| format_err!(ErrorKind::PathError, "Error extracting file-name from: {:?}", full_name))?
-            .split('_');
-        let stamp = full_name.next()
-            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}", full_name))?;
-        let stamp = Utc.datetime_from_str(stamp, DT_FORMAT)?;
-        let tag = full_name.next()
-            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}", full_name))?;
+            .ok_or_else(|| format_err!(ErrorKind::PathError, "Error extracting file-name from: {:?}", full_name))?;
+        let mut full_name_iter = full_name.split('_');
+        let stamp = full_name_iter.next()
+            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}, \
+                                                             must follow `<timestamp>_<tag>`", full_name))?;
+        let tag = full_name_iter.next()
+            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}, \
+                                                             must follow `<timestamp>_<tag>`", full_name))?;
+        let stamp = Utc.datetime_from_str(stamp, DT_FORMAT)
+            .chain_err(|| format_err!(ErrorKind::TagError, "Invalid timestamp format {:?}, on tag: {:?}, must follow `{}`",
+                                      stamp, full_name, DT_FORMAT))?;
 
         let mut up = None;
         let mut down = None;
