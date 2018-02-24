@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.2]
+### Added
+
+### Changed
+- Fix `Config::reload` to copy `cli_compatible` setting
+
+### Removed
+
 ## [0.19.1]
 ### Added
 
