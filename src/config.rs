@@ -864,6 +864,7 @@ impl Config {
             Some(path) => Config::from_settings_file(path)?,
             None => self.clone(),
         };
+        config.cli_compatible = self.cli_compatible;
         config.migrations = self.migrations.clone();
         let applied = config.load_applied()?;
         config.applied = applied;
