@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.3]
+### Added
+
+### Changed
+- Update rusqlite
+
+### Removed
+
 ## [0.19.2]
 ### Added
 
