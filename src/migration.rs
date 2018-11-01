@@ -140,6 +140,33 @@ impl Migratable for FileMigration {
     }
 }
 
+/// SQL statements for use in `EmbeddedMigration`
+#[derive(Clone, Debug)]
+pub enum Statements {
+    String(String),
+    StaticStr(&'static str)
+}
+
+impl Into<Statements> for &'static str {
+    fn into(self) -> Statements {
+        Statements::StaticStr(self)
+    }
+}
+
+impl Into<Statements> for String {
+    fn into(self) -> Statements {
+        Statements::String(self)
+    }
+}
+
+impl AsRef<str> for Statements {
+    fn as_ref(&self) -> &str {
+        match self {
+            Statements::StaticStr(s) => s,
+            Statements::String(s) => &s,
+        }
+    }
+}
 
 /// Define an embedded migration
 ///
@@ -185,8 +212,8 @@ impl Migratable for FileMigration {
 #[derive(Clone, Debug)]
 pub struct EmbeddedMigration {
     pub tag: String,
-    pub up: Option<&'static str>,
-    pub down: Option<&'static str>,
+    pub up: Option<Statements>,
+    pub down: Option<Statements>,
 }
 impl EmbeddedMigration {
     /// Create a new `EmbeddedMigration` with the given tag
@@ -205,15 +232,15 @@ impl EmbeddedMigration {
         }
     }
 
-    /// Static `str` of statements to use for `up` migrations
-    pub fn up(&mut self, stmt: &'static str) -> &mut Self {
-        self.up = Some(stmt);
+    /// `&'static str` or `String` of statements to use for `up` migrations
+    pub fn up(&mut self, stmt: impl Into<Statements>) -> &mut Self {
+        self.up = Some(stmt.into());
         self
     }
 
-    /// Static `str` of statements to use for `down` migrations
-    pub fn down(&mut self, stmt: &'static str) -> &mut Self {
-        self.down = Some(stmt);
+    /// `&'static str` or `String` of statements to use for `down` migrations
+    pub fn down(&mut self, stmt: impl Into<Statements>) -> &mut Self {
+        self.down = Some(stmt.into());
         self
     }
 
@@ -230,15 +257,15 @@ impl Migratable for EmbeddedMigration {
             match _db_kind {
                 DbKind::Sqlite => {
                     let db_path = _config.database_path()?;
-                    drivers::sqlite::run_migration_str(&db_path, _up)?;
+                    drivers::sqlite::run_migration_str(&db_path, _up.as_ref())?;
                 }
                 DbKind::Postgres => {
                     let conn_str = _config.connect_string()?;
-                    drivers::pg::run_migration_str(&conn_str, _up)?;
+                    drivers::pg::run_migration_str(&conn_str, _up.as_ref())?;
                 }
                 DbKind::MySql => {
                     let conn_str = _config.connect_string()?;
-                    drivers::mysql::run_migration_str(&conn_str, _up)?;
+                    drivers::mysql::run_migration_str(&conn_str, _up.as_ref())?;
                 }
             }
             #[cfg(not(any(feature="d-postgres", feature="d-sqlite", feature="d-mysql")))]
@@ -253,15 +280,15 @@ impl Migratable for EmbeddedMigration {
             match db_kind {
                 DbKind::Sqlite => {
                     let db_path = config.database_path()?;
-                    drivers::sqlite::run_migration_str(&db_path, down)?;
+                    drivers::sqlite::run_migration_str(&db_path, down.as_ref())?;
                 }
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
-                    drivers::pg::run_migration_str(&conn_str, down)?;
+                    drivers::pg::run_migration_str(&conn_str, down.as_ref())?;
                 }
                 DbKind::MySql => {
                     let conn_str = config.connect_string()?;
-                    drivers::mysql::run_migration_str(&conn_str, down)?;
+                    drivers::mysql::run_migration_str(&conn_str, down.as_ref())?;
                 }
             }
         } else {
