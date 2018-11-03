@@ -233,13 +233,13 @@ impl EmbeddedMigration {
     }
 
     /// `&'static str` or `String` of statements to use for `up` migrations
-    pub fn up(&mut self, stmt: impl Into<Statements>) -> &mut Self {
+    pub fn up<T: Into<Statements>>(&mut self, stmt: T) -> &mut Self {
         self.up = Some(stmt.into());
         self
     }
 
     /// `&'static str` or `String` of statements to use for `down` migrations
-    pub fn down(&mut self, stmt: impl Into<Statements>) -> &mut Self {
+    pub fn down<T: Into<Statements>>(&mut self, stmt: T) -> &mut Self {
         self.down = Some(stmt.into());
         self
     }
