@@ -21,7 +21,12 @@
 | `d-all`       | Enable all backends          |
 
 
-Note: No features are enabled by default
+*Notes:*
+
+- No features are enabled by default
+- As of `0.20.0` the `d-sqlite` feature does not use `rusqlite`s `bundled` feature.
+  If you would like `sqlite` to be bundled with your application, you will have to
+  include `rusqlite` and enable the `bundled` feature in your project.
 
 
 ## Usage
