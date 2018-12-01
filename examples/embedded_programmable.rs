@@ -85,7 +85,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
             .down("migrations/embedded/create_places_table/down.sql")?
             .boxed(),
         EmbeddedMigration::with_tag("alter-places-table-add-address")
-            .up("alter table places add column address text;")
+            .up(String::from("alter table places add column address text;"))
             .down("create table new_places (name text);\
                    insert into new_places select name from places;\
                    drop table if exists places;
