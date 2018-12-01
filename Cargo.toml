@@ -32,7 +32,7 @@ percent-encoding = "1"
 url = "1"
 log = "0.4"
 postgres = { version = "0.15", optional = true }
-rusqlite = { version = "0.14", optional = true }
+rusqlite = { version = "0.15", optional = true }
 mysql = { version = "14", optional = true }
 
 [features]

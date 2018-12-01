@@ -25,6 +25,8 @@ use migrant_lib::{
     Config, Settings, ConnConfig, Migrator, Direction,
     FileMigration, EmbeddedMigration, FnMigration,
 };
+#[cfg(feature="d-sqlite")]
+use rusqlite::types::ToSql;
 
 
 #[cfg(feature="d-sqlite")]
@@ -38,8 +40,9 @@ mod migrations {
             let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for (i, name) in people.iter().enumerate() {
+                let id = i as u32 + 1;                
                 conn.execute("insert into users (id, name) values (?1, ?2);",
-                             &[&(i as u32 + 1), name])?;
+                             &[&id as &ToSql, name])?;
             }
             Ok(())
         }

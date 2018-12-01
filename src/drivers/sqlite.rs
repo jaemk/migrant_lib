@@ -5,7 +5,7 @@ use super::*;
 #[cfg(feature="d-sqlite")]
 use std::io::Read;
 #[cfg(feature="d-sqlite")]
-use rusqlite::Connection;
+use rusqlite::{Connection, NO_PARAMS};
 
 #[cfg(not(feature="d-sqlite"))]
 use std::process::Command;
@@ -62,7 +62,7 @@ pub fn migration_table_exists(db_path: &str) -> Result<bool> {
 #[cfg(feature="d-sqlite")]
 pub fn migration_table_exists(db_path: &str) -> Result<bool> {
     let conn = Connection::open(db_path)?;
-    let exists: bool = conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, &[], |row| row.get(0))?;
+    let exists: bool = conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, NO_PARAMS, |row| row.get(0))?;
     Ok(exists)
 }
 
@@ -85,7 +85,7 @@ pub fn migration_setup(db_path: &Path) -> Result<bool> {
     let db_path = db_path.to_str().unwrap();
     if !migration_table_exists(db_path)? {
         let conn = Connection::open(db_path)?;
-        conn.execute(sql::CREATE_TABLE, &[])?;
+        conn.execute(sql::CREATE_TABLE, NO_PARAMS)?;
         return Ok(true)
     }
     Ok(false)
@@ -105,7 +105,7 @@ pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
 pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
     let mut stmt = conn.prepare(sql::GET_MIGRATIONS)?;
-    let mut rows = stmt.query(&[])?;
+    let mut rows = stmt.query(NO_PARAMS)?;
     let mut migs = vec![];
     while let Some(row) = rows.next() {
         let row = row?;
