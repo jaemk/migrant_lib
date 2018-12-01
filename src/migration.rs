@@ -3,6 +3,7 @@ Embedded / programmable migrations
 
 */
 use std;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 
@@ -140,33 +141,6 @@ impl Migratable for FileMigration {
     }
 }
 
-/// SQL statements for use in `EmbeddedMigration`
-#[derive(Clone, Debug)]
-pub enum Statements {
-    String(String),
-    StaticStr(&'static str)
-}
-
-impl Into<Statements> for &'static str {
-    fn into(self) -> Statements {
-        Statements::StaticStr(self)
-    }
-}
-
-impl Into<Statements> for String {
-    fn into(self) -> Statements {
-        Statements::String(self)
-    }
-}
-
-impl AsRef<str> for Statements {
-    fn as_ref(&self) -> &str {
-        match self {
-            Statements::StaticStr(s) => s,
-            Statements::String(s) => &s,
-        }
-    }
-}
 
 /// Define an embedded migration
 ///
@@ -212,8 +186,8 @@ impl AsRef<str> for Statements {
 #[derive(Clone, Debug)]
 pub struct EmbeddedMigration {
     pub tag: String,
-    pub up: Option<Statements>,
-    pub down: Option<Statements>,
+    pub up: Option<Cow<'static, str>>,
+    pub down: Option<Cow<'static, str>>,
 }
 impl EmbeddedMigration {
     /// Create a new `EmbeddedMigration` with the given tag
@@ -233,13 +207,13 @@ impl EmbeddedMigration {
     }
 
     /// `&'static str` or `String` of statements to use for `up` migrations
-    pub fn up<T: Into<Statements>>(&mut self, stmt: T) -> &mut Self {
+    pub fn up<T: Into<Cow<'static, str>>>(&mut self, stmt: T) -> &mut Self {
         self.up = Some(stmt.into());
         self
     }
 
     /// `&'static str` or `String` of statements to use for `down` migrations
-    pub fn down<T: Into<Statements>>(&mut self, stmt: T) -> &mut Self {
+    pub fn down<T: Into<Cow<'static, str>>>(&mut self, stmt: T) -> &mut Self {
         self.down = Some(stmt.into());
         self
     }
