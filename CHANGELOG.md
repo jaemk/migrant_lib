@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.21.0]
+### Added
+
+### Changed
+- Bump rusqlite to 0.15
+- convert `Statement` enum to `Cow<str>`
+
+### Removed
+
+## [0.20.0]
+### Added
+- Support for pulling config values from env vars
+
+### Changed
+
+### Removed
+
 ## [0.19.4]
 ### Added
 - EmbeddedMigration's can accept `&'static str` or `String`
