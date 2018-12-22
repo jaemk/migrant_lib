@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0]
+### Added
+
+### Changed
+- Support for pulling additional `database_params` config values from env vars
+
+### Removed
+
 ## [0.21.0]
 ### Added
 
