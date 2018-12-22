@@ -629,7 +629,18 @@ impl PostgresSettings {
             } else { maybe_str.to_string() }
         });
 
-        let database_params = self.database_params.clone();
+        let database_params = self.database_params.as_ref().map(|vars| {
+            vars.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
+                let val = if v.starts_with("env:") {
+                    let v = v.trim_left_matches("env:");
+                    env::var(v).unwrap_or_else(|_| "".into())
+                } else {
+                    v.clone()
+                };
+                acc.insert(k.clone(), val);
+                acc
+            })
+        });
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
@@ -731,7 +742,18 @@ impl MySqlSettings {
             } else { maybe_str.to_string() }
         });
 
-        let database_params = self.database_params.clone();
+        let database_params = self.database_params.as_ref().map(|vars| {
+            vars.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
+                let val = if v.starts_with("env:") {
+                    let v = v.trim_left_matches("env:");
+                    env::var(v).unwrap_or_else(|_| "".into())
+                } else {
+                    v.clone()
+                };
+                acc.insert(k.clone(), val);
+                acc
+            })
+        });
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
