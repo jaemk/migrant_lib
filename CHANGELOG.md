@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.23.0]
+### Added
+
+### Changed
+- Bump rusqlite to 0.16
+- Bump mysql to 15
+
+### Removed
+
 ## [0.22.0]
 ### Added
 
