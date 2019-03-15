@@ -81,7 +81,7 @@ fn mysql_cmd<T: serde::de::DeserializeOwned + Clone>(
             s.push_str(&line);
             s.push(',');
         }
-        let mut s = s.trim_right_matches(",").to_owned();
+        let mut s = s.trim_end_matches(",").to_owned();
         s.push(']');
         Ok(s)
     }
