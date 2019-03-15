@@ -15,21 +15,20 @@ This should be run with `cargo run --example embedded_programmable --features d-
 
 */
 extern crate migrant_lib;
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 extern crate rusqlite;
 
-#[cfg(feature="d-sqlite")]
-use std::env;
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 use migrant_lib::{
-    Config, Settings, ConnConfig, Migrator, Direction,
-    FileMigration, EmbeddedMigration, FnMigration,
+    Config, ConnConfig, Direction, EmbeddedMigration, FileMigration, FnMigration, Migrator,
+    Settings,
 };
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 use rusqlite::types::ToSql;
+#[cfg(feature = "d-sqlite")]
+use std::env;
 
-
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 mod migrations {
     use super::*;
     pub struct AddUserData;
@@ -40,9 +39,11 @@ mod migrations {
             let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for (i, name) in people.iter().enumerate() {
-                let id = i as u32 + 1;                
-                conn.execute("insert into users (id, name) values (?1, ?2);",
-                             &[&id as &ToSql, name])?;
+                let id = i as u32 + 1;
+                conn.execute(
+                    "insert into users (id, name) values (?1, ?2);",
+                    &[&id as &ToSql, name],
+                )?;
             }
             Ok(())
         }
@@ -58,14 +59,11 @@ mod migrations {
     }
 }
 
-
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 fn run() -> Result<(), Box<std::error::Error>> {
     let path = env::current_dir()?;
     let path = path.join("db/embedded_example.db");
-    let settings = Settings::configure_sqlite()
-        .database_path(&path)?
-        .build()?;
+    let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
 
     let mut config = Config::with_settings(&settings);
     config.setup()?;
@@ -73,8 +71,12 @@ fn run() -> Result<(), Box<std::error::Error>> {
     // Define migrations
     config.use_migrations(&[
         EmbeddedMigration::with_tag("create-users-table")
-            .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
-            .down(include_str!("../migrations/embedded/create_users_table/down.sql"))
+            .up(include_str!(
+                "../migrations/embedded/create_users_table/up.sql"
+            ))
+            .down(include_str!(
+                "../migrations/embedded/create_users_table/down.sql"
+            ))
             .boxed(),
         FnMigration::with_tag("add-user-data")
             .up(migrations::AddUserData::up)
@@ -86,10 +88,12 @@ fn run() -> Result<(), Box<std::error::Error>> {
             .boxed(),
         EmbeddedMigration::with_tag("alter-places-table-add-address")
             .up(String::from("alter table places add column address text;"))
-            .down("create table new_places (name text);\
+            .down(
+                "create table new_places (name text);\
                    insert into new_places select name from places;\
                    drop table if exists places;
-                   alter table new_places rename to places;")
+                   alter table new_places rename to places;",
+            )
             .boxed(),
     ])?;
 
@@ -118,8 +122,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 fn run() -> Result<(), Box<std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
@@ -130,4 +133,3 @@ pub fn main() {
         println!("[ERROR] {}", e);
     }
 }
-

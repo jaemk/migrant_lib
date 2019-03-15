@@ -1,179 +1,196 @@
+use super::*;
 /// Postgres database functions using shell commands and db drivers
 use std;
 use std::path::Path;
-use super::*;
 
-#[cfg(feature="d-postgres")]
-use std::io::Read;
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 use postgres::{Connection, TlsMode};
+#[cfg(feature = "d-postgres")]
+use std::io::Read;
 
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 use std::process::Command;
 
-
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 fn psql_cmd(conn_str: &str, cmd: &str) -> Result<String> {
     let out = Command::new("psql")
-                    .arg(conn_str)
-                    .arg("-v").arg("ON_ERROR_STOP=1")
-                    .arg("-t")      // no headers or footer
-                    .arg("-A")      // un-aligned output
-                    .arg("-F,")     // comma separator
-                    .arg("-c")
-                    .arg(cmd)
-                    .output()
-                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                              "Error running command `psql`. Is it available on your PATH?"))?;
+        .arg(conn_str)
+        .arg("-v")
+        .arg("ON_ERROR_STOP=1")
+        .arg("-t") // no headers or footer
+        .arg("-A") // un-aligned output
+        .arg("-F,") // comma separator
+        .arg("-c")
+        .arg(cmd)
+        .output()
+        .chain_err(|| {
+            format_err!(
+                ErrorKind::ShellCommand,
+                "Error running command `psql`. Is it available on your PATH?"
+            )
+        })?;
     if !out.status.success() {
         let stderr = std::str::from_utf8(&out.stderr)?;
-        bail_fmt!(ErrorKind::Migration, "Error executing statement, stderr: `{}`", stderr);
+        bail_fmt!(
+            ErrorKind::Migration,
+            "Error executing statement, stderr: `{}`",
+            stderr
+        );
     }
     let stdout = String::from_utf8(out.stdout)?;
     Ok(stdout)
 }
 
-
 // --
 // Check connection
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     let out = Command::new("psql")
-                    .arg(conn_str)
-                    .arg("-c")
-                    .arg("")
-                    .output()
-                    .chain_err(|| "Error running command `psql`. Is it available on your PATH?")?;
+        .arg(conn_str)
+        .arg("-c")
+        .arg("")
+        .output()
+        .chain_err(|| "Error running command `psql`. Is it available on your PATH?")?;
     Ok(out.status.success())
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
     match Connection::connect(conn_str, TlsMode::None) {
-        Ok(_)   => Ok(true),
-        Err(_)  => Ok(false)
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
     }
 }
-
 
 // --
 // Check `__migrant_migrations` table exists
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let stdout = psql_cmd(conn_str, sql::PG_MIGRATION_TABLE_EXISTS)?;
     Ok(stdout.trim() == "t")
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let conn = Connection::connect(conn_str, TlsMode::None)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
-    let rows = conn.query(sql::PG_MIGRATION_TABLE_EXISTS, &[])
+    let rows = conn
+        .query(sql::PG_MIGRATION_TABLE_EXISTS, &[])
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     let exists: bool = rows.iter().next().unwrap().get(0);
     Ok(exists)
 }
 
-
 // --
 // Create `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         psql_cmd(conn_str, sql::CREATE_TABLE)?;
-        return Ok(true)
+        return Ok(true);
     }
     Ok(false)
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         let conn = Connection::connect(conn_str, TlsMode::None)
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
         conn.execute(sql::CREATE_TABLE, &[])
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
-        return Ok(true)
+        return Ok(true);
     }
     Ok(false)
 }
 
-
 // --
 // Select all migrations from `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let stdout = psql_cmd(conn_str, sql::GET_MIGRATIONS)?;
     Ok(stdout.trim().lines().map(String::from).collect())
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
     let rows = conn.query(sql::GET_MIGRATIONS, &[])?;
     Ok(rows.iter().map(|row| row.get(0)).collect())
 }
 
-
 // --
 // Insert migration tag into `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     psql_cmd(conn_str, &sql::PG_ADD_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
-    conn.execute("insert into __migrant_migrations (tag) values ($1)", &[&tag])?;
+    conn.execute(
+        "insert into __migrant_migrations (tag) values ($1)",
+        &[&tag],
+    )?;
     Ok(())
 }
-
 
 // --
 // Delete migration tag from `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     psql_cmd(conn_str, &sql::PG_DELETE_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)?;
     conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
     Ok(())
 }
 
-
 // --
 // Apply migration to database
 // --
-#[cfg(not(feature="d-postgres"))]
+#[cfg(not(feature = "d-postgres"))]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
-    let filename = filename.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
+    let filename = filename
+        .to_str()
+        .ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
     let migrate = Command::new("psql")
-            .arg(&conn_str)
-            .arg("-v").arg("ON_ERROR_STOP=1")
-            .arg("-f").arg(filename)
-            .output()
-            .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                      "Error running command `psql`. Is it available on your PATH?"))?;
+        .arg(&conn_str)
+        .arg("-v")
+        .arg("ON_ERROR_STOP=1")
+        .arg("-f")
+        .arg(filename)
+        .output()
+        .chain_err(|| {
+            format_err!(
+                ErrorKind::ShellCommand,
+                "Error running command `psql`. Is it available on your PATH?"
+            )
+        })?;
     if !migrate.status.success() {
         let stderr = std::str::from_utf8(&migrate.stderr)?;
-        bail_fmt!(ErrorKind::Migration, "Error executing statement, stderr: `{}`", stderr);
+        bail_fmt!(
+            ErrorKind::Migration,
+            "Error executing statement, stderr: `{}`",
+            stderr
+        );
     }
     Ok(())
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut file = std::fs::File::open(filename)?;
     let mut buf = String::new();
@@ -186,13 +203,15 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     Ok(())
 }
 
-
-#[cfg(not(feature="d-postgres"))]
-pub fn run_migration_str(_conn_str: &str, _stmt: &str) -> Result<connection::markers::PostgresFeatureRequired> {
+#[cfg(not(feature = "d-postgres"))]
+pub fn run_migration_str(
+    _conn_str: &str,
+    _stmt: &str,
+) -> Result<connection::markers::PostgresFeatureRequired> {
     panic!("\n** Migrant ERROR: `d-postgres` feature required **");
 }
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
     let conn = Connection::connect(conn_str, TlsMode::None)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
@@ -201,11 +220,10 @@ pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
     Ok(())
 }
 
-
 #[cfg(test)]
 mod test {
-    use std;
     use super::*;
+    use std;
     macro_rules! _try {
         ($exp:expr) => {
             match $exp {
@@ -215,7 +233,7 @@ mod test {
                     panic!(e)
                 }
             }
-        }
+        };
     }
 
     #[test]
@@ -230,7 +248,10 @@ mod test {
 
         // setup migration table
         let was_setup = _try!(migration_setup(&conn_str));
-        assert_eq!(true, was_setup, "Assert `migration_setup` initializes migration table");
+        assert_eq!(
+            true, was_setup,
+            "Assert `migration_setup` initializes migration table"
+        );
         let was_setup = _try!(migration_setup(&conn_str));
         assert_eq!(false, was_setup, "Assert `migration_setup` is idempotent");
 

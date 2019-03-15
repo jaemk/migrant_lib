@@ -1,18 +1,17 @@
 use std::fmt;
-use {DbKind, Config, Direction};
-
+use {Config, DbKind, Direction};
 
 pub trait MigratableClone {
     fn clone_migratable_box(&self) -> Box<Migratable>;
 }
 impl<T> MigratableClone for T
-    where T: 'static + Migratable + Clone
+where
+    T: 'static + Migratable + Clone,
 {
     fn clone_migratable_box(&self) -> Box<Migratable> {
         Box::new(self.clone())
     }
 }
-
 
 /// A type that can be used to define database migrations
 pub trait Migratable: MigratableClone {
@@ -47,4 +46,3 @@ impl fmt::Debug for Box<Migratable> {
         write!(f, "Migration: {}", self.tag())
     }
 }
-

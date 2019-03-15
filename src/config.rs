@@ -2,25 +2,23 @@
 Configuration structs
 */
 
-use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs;
-use std::collections::{HashSet, BTreeMap};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
+use chrono::{self, TimeZone};
 use toml;
 use url;
-use chrono::{self, TimeZone};
 
 use drivers;
-use {
-    Migratable, encode, prompt, open_file_in_fg, write_to_path, DbKind,
-    invalid_full_tag, invalid_optional_stamp_tag,
-    DT_FORMAT, CONFIG_FILE,
-    PG_CONFIG_TEMPLATE, SQLITE_CONFIG_TEMPLATE, MYSQL_CONFIG_TEMPLATE,
-};
 use errors::*;
-
+use {
+    encode, invalid_full_tag, invalid_optional_stamp_tag, open_file_in_fg, prompt, write_to_path,
+    DbKind, Migratable, CONFIG_FILE, DT_FORMAT, MYSQL_CONFIG_TEMPLATE, PG_CONFIG_TEMPLATE,
+    SQLITE_CONFIG_TEMPLATE,
+};
 
 #[derive(Debug, Clone)]
 enum DatabaseConfigOptions {
@@ -28,7 +26,6 @@ enum DatabaseConfigOptions {
     Postgres(PostgresSettingsBuilder),
     MySql(MySqlSettingsBuilder),
 }
-
 
 #[derive(Debug, Clone)]
 /// Project settings file builder to initialize a new settings file
@@ -140,7 +137,10 @@ impl SettingsFileInitializer {
     /// Determines whether new .migrant file location should be in
     /// the given directory or a user specified path
     fn confirm_new_config_location(dir: &Path) -> Result<PathBuf> {
-        println!(" A new `{}` config file will be created at the following location: ", CONFIG_FILE);
+        println!(
+            " A new `{}` config file will be created at the following location: ",
+            CONFIG_FILE
+        );
         println!("   {:?}", dir.display());
         let ans = prompt(" Is this ok? [Y/n] ")?;
         if ans.is_empty() || ans.to_lowercase() == "y" {
@@ -155,7 +155,12 @@ impl SettingsFileInitializer {
 
         let path = PathBuf::from(ans);
         if !path.is_absolute() || path.file_name().unwrap() != CONFIG_FILE {
-            bail_fmt!(ErrorKind::Config, "Invalid absolute path: {}, must end in `{}`", path.display(), CONFIG_FILE);
+            bail_fmt!(
+                ErrorKind::Config,
+                "Invalid absolute path: {}, must end in `{}`",
+                path.display(),
+                CONFIG_FILE
+            );
         }
         Ok(path)
     }
@@ -168,8 +173,14 @@ impl SettingsFileInitializer {
         let config_path = if !self.interactive {
             config_path
         } else {
-            Self::confirm_new_config_location(&config_path)
-                .map_err(|e| format_err!(ErrorKind::Config, "unable to create a `{}` config -> {}", CONFIG_FILE, e))?
+            Self::confirm_new_config_location(&config_path).map_err(|e| {
+                format_err!(
+                    ErrorKind::Config,
+                    "unable to create a `{}` config -> {}",
+                    CONFIG_FILE,
+                    e
+                )
+            })?
         };
 
         let (db_kind, db_options) = if let Some(ref options) = self.database_options {
@@ -188,7 +199,9 @@ impl SettingsFileInitializer {
                 let db_kind = prompt(" database type (sqlite|postgres|mysql) >> ")?;
                 match db_kind.parse::<DbKind>() {
                     Ok(kind) => kind,
-                    Err(_) => bail_fmt!(ErrorKind::Config, "unsupported database type: {}", db_kind),
+                    Err(_) => {
+                        bail_fmt!(ErrorKind::Config, "unsupported database type: {}", db_kind)
+                    }
                 }
             };
             let options = match db_kind {
@@ -211,34 +224,77 @@ impl SettingsFileInitializer {
             (db_kind, options)
         };
 
-        println!("\n ** Writing {} config template to {:?}", db_kind, config_path);
+        println!(
+            "\n ** Writing {} config template to {:?}",
+            db_kind, config_path
+        );
         match db_options {
             DatabaseConfigOptions::Postgres(ref opts) => {
                 let mut content = PG_CONFIG_TEMPLATE
-                    .replace("__DB_NAME__", &opts.database_name.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_NAME") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_USER__", &opts.database_user.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_USER") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_PASS__", &opts.database_password.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_PASSWORD") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_HOST__", &opts.database_host.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_HOST") }
-                        else { String::from("localhost") }
-                    }))
-                    .replace("__DB_PORT__", &opts.database_port.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_PORT") }
-                        else { String::from("5432") }
-                    }))
-                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:MIGRATION_LOCATION") }
-                        else { String::from("migrations") }
-                    }));
+                    .replace(
+                        "__DB_NAME__",
+                        &opts.database_name.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_NAME")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_USER__",
+                        &opts.database_user.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_USER")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_PASS__",
+                        &opts.database_password.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_PASSWORD")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_HOST__",
+                        &opts.database_host.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_HOST")
+                            } else {
+                                String::from("localhost")
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_PORT__",
+                        &opts.database_port.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_PORT")
+                            } else {
+                                String::from("5432")
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__MIG_LOC__",
+                        &opts
+                            .migration_location
+                            .as_ref()
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                if self.with_env_defaults {
+                                    String::from("env:MIGRATION_LOCATION")
+                                } else {
+                                    String::from("migrations")
+                                }
+                            }),
+                    );
                 if let Some(ref params) = opts.database_params {
                     for (k, v) in params.iter() {
                         content.push_str(&format!("{} = {:?}\n", k, v));
@@ -251,30 +307,70 @@ impl SettingsFileInitializer {
             }
             DatabaseConfigOptions::MySql(ref opts) => {
                 let mut content = MYSQL_CONFIG_TEMPLATE
-                    .replace("__DB_NAME__", &opts.database_name.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_NAME") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_USER__", &opts.database_user.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_USER") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_PASS__", &opts.database_password.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_PASSWORD") }
-                        else { String::new() }
-                    }))
-                    .replace("__DB_HOST__", &opts.database_host.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_HOST") }
-                        else { String::from("localhost") }
-                    }))
-                    .replace("__DB_PORT__", &opts.database_port.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_PORT") }
-                        else { String::from("3306") }
-                    }))
-                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:MIGRATION_LOCATION") }
-                        else { String::from("migrations") }
-                    }));
+                    .replace(
+                        "__DB_NAME__",
+                        &opts.database_name.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_NAME")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_USER__",
+                        &opts.database_user.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_USER")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_PASS__",
+                        &opts.database_password.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_PASSWORD")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_HOST__",
+                        &opts.database_host.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_HOST")
+                            } else {
+                                String::from("localhost")
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__DB_PORT__",
+                        &opts.database_port.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_PORT")
+                            } else {
+                                String::from("3306")
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__MIG_LOC__",
+                        &opts
+                            .migration_location
+                            .as_ref()
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                if self.with_env_defaults {
+                                    String::from("env:MIGRATION_LOCATION")
+                                } else {
+                                    String::from("migrations")
+                                }
+                            }),
+                    );
                 if let Some(ref params) = opts.database_params {
                     for (k, v) in params.iter() {
                         content.push_str(&format!("{} = {:?}\n", k, v));
@@ -287,28 +383,55 @@ impl SettingsFileInitializer {
             }
             DatabaseConfigOptions::Sqlite(ref opts) => {
                 let content = SQLITE_CONFIG_TEMPLATE
-                    .replace("__CONFIG_DIR__", config_path.parent().unwrap().to_str().unwrap())
-                    .replace("__DB_PATH__", &opts.database_path.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:DATABASE_PATH") }
-                        else { String::new() }
-                    }))
-                    .replace("__MIG_LOC__", &opts.migration_location.as_ref().cloned().unwrap_or_else(|| {
-                        if self.with_env_defaults { String::from("env:MIGRATION_LOCATION") }
-                        else { String::from("migrations") }
-                    }));
+                    .replace(
+                        "__CONFIG_DIR__",
+                        config_path.parent().unwrap().to_str().unwrap(),
+                    )
+                    .replace(
+                        "__DB_PATH__",
+                        &opts.database_path.as_ref().cloned().unwrap_or_else(|| {
+                            if self.with_env_defaults {
+                                String::from("env:DATABASE_PATH")
+                            } else {
+                                String::new()
+                            }
+                        }),
+                    )
+                    .replace(
+                        "__MIG_LOC__",
+                        &opts
+                            .migration_location
+                            .as_ref()
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                if self.with_env_defaults {
+                                    String::from("env:MIGRATION_LOCATION")
+                                } else {
+                                    String::from("migrations")
+                                }
+                            }),
+                    );
                 write_to_path(&config_path, content.as_bytes())?;
             }
         };
 
-        println!("\n ** Please update `{}` with your database credentials and run `setup`\n", CONFIG_FILE);
+        println!(
+            "\n ** Please update `{}` with your database credentials and run `setup`\n",
+            CONFIG_FILE
+        );
 
         if self.interactive {
             let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
             let file_path = config_path.to_str().unwrap();
             let command = format!("{} {}", editor, file_path);
-            println!(" -- Your config file will be opened with the following command: `{}`", &command);
+            println!(
+                " -- Your config file will be opened with the following command: `{}`",
+                &command
+            );
             println!(" -- After editing, the `setup` command will be run for you");
-            let _ = prompt(&format!(" -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"))?;
+            let _ = prompt(&format!(
+                " -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"
+            ))?;
             open_file_in_fg(&editor, file_path)
                 .map_err(|e| format_err!(ErrorKind::Config, "Error editing config file: {}", e))?;
 
@@ -319,7 +442,6 @@ impl SettingsFileInitializer {
         Ok(())
     }
 }
-
 
 /// Sqlite settings builder
 #[derive(Debug, Clone, Default)]
@@ -336,7 +458,9 @@ impl SqliteSettingsBuilder {
     /// **Required** -- Set the absolute path of a database file.
     pub fn database_path<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
-        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        let s = p
+            .to_str()
+            .ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
         self.database_path = Some(s.to_owned());
         Ok(self)
     }
@@ -348,20 +472,29 @@ impl SqliteSettingsBuilder {
     /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
-        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        let s = p
+            .to_str()
+            .ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
         self.migration_location = Some(s.to_owned());
         Ok(self)
     }
 
     /// Build a `Settings` object
     pub fn build(&self) -> Result<Settings> {
-        let db_path = self.database_path
+        let db_path = self
+            .database_path
             .as_ref()
             .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_path` parameter"))?
             .clone();
         {
             let p = Path::new(&db_path);
-            if ! p.is_absolute() { bail_fmt!(ErrorKind::Config, "Explicit settings database path must be absolute: {:?}", p) }
+            if !p.is_absolute() {
+                bail_fmt!(
+                    ErrorKind::Config,
+                    "Explicit settings database path must be absolute: {:?}",
+                    p
+                )
+            }
         }
         let inner = ConfigurableSettings::Sqlite(SqliteSettings {
             database_type: "sqlite".into(),
@@ -371,7 +504,6 @@ impl SqliteSettingsBuilder {
         Ok(Settings { inner })
     }
 }
-
 
 /// Postgres settings builder
 #[derive(Debug, Clone, Default)]
@@ -437,7 +569,9 @@ impl PostgresSettingsBuilder {
     /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
-        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        let s = p
+            .to_str()
+            .ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
         self.migration_location = Some(s.to_owned());
         Ok(self)
     }
@@ -446,12 +580,23 @@ impl PostgresSettingsBuilder {
     pub fn build(&self) -> Result<Settings> {
         let inner = ConfigurableSettings::Postgres(PostgresSettings {
             database_type: "postgres".into(),
-            database_name: self.database_name.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_name` parameter"))?.clone(),
-            database_user: self.database_user.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_user` parameter"))?.clone(),
-            database_password: self.database_password.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_password` parameter"))?.clone(),
+            database_name: self
+                .database_name
+                .as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_name` parameter"))?
+                .clone(),
+            database_user: self
+                .database_user
+                .as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_user` parameter"))?
+                .clone(),
+            database_password: self
+                .database_password
+                .as_ref()
+                .ok_or_else(|| {
+                    format_err!(ErrorKind::Config, "Missing `database_password` parameter")
+                })?
+                .clone(),
             database_host: self.database_host.clone(),
             database_port: self.database_port.clone(),
             database_params: self.database_params.clone(),
@@ -460,7 +605,6 @@ impl PostgresSettingsBuilder {
         Ok(Settings { inner })
     }
 }
-
 
 /// MySQL settings builder
 #[derive(Debug, Clone, Default)]
@@ -525,7 +669,9 @@ impl MySqlSettingsBuilder {
     /// settings file's directory if a settings file exists, or the current directory.
     pub fn migration_location<T: AsRef<Path>>(&mut self, p: T) -> Result<&mut Self> {
         let p = p.as_ref();
-        let s = p.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
+        let s = p
+            .to_str()
+            .ok_or_else(|| format_err!(ErrorKind::PathError, "Unicode path error: {:?}", p))?;
         self.migration_location = Some(s.to_owned());
         Ok(self)
     }
@@ -534,12 +680,23 @@ impl MySqlSettingsBuilder {
     pub fn build(&self) -> Result<Settings> {
         let inner = ConfigurableSettings::MySql(MySqlSettings {
             database_type: "mysql".into(),
-            database_name: self.database_name.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_name` parameter"))?.clone(),
-            database_user: self.database_user.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_user` parameter"))?.clone(),
-            database_password: self.database_password.as_ref()
-                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_password` parameter"))?.clone(),
+            database_name: self
+                .database_name
+                .as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_name` parameter"))?
+                .clone(),
+            database_user: self
+                .database_user
+                .as_ref()
+                .ok_or_else(|| format_err!(ErrorKind::Config, "Missing `database_user` parameter"))?
+                .clone(),
+            database_password: self
+                .database_password
+                .as_ref()
+                .ok_or_else(|| {
+                    format_err!(ErrorKind::Config, "Missing `database_password` parameter")
+                })?
+                .clone(),
             database_host: self.database_host.clone(),
             database_port: self.database_port.clone(),
             database_params: self.database_params.clone(),
@@ -548,7 +705,6 @@ impl MySqlSettingsBuilder {
         Ok(Settings { inner })
     }
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct PostgresSettings {
@@ -563,20 +719,36 @@ pub(crate) struct PostgresSettings {
 }
 impl PostgresSettings {
     pub(crate) fn connect_string(&self) -> Result<String> {
-        let host = self.database_host.clone().unwrap_or_else(|| "localhost".to_string());
-        let host = if host.is_empty() { "localhost".to_string() } else { host };
+        let host = self
+            .database_host
+            .clone()
+            .unwrap_or_else(|| "localhost".to_string());
+        let host = if host.is_empty() {
+            "localhost".to_string()
+        } else {
+            host
+        };
         let host = encode(&host);
 
-        let port = self.database_port.clone().unwrap_or_else(|| "5432".to_string());
-        let port = if port.is_empty() { "5432".to_string() } else { port };
+        let port = self
+            .database_port
+            .clone()
+            .unwrap_or_else(|| "5432".to_string());
+        let port = if port.is_empty() {
+            "5432".to_string()
+        } else {
+            port
+        };
         let port = encode(&port);
 
-        let s = format!("postgres://{user}:{pass}@{host}:{port}/{db_name}",
-                user=encode(&self.database_user),
-                pass=encode(&self.database_password),
-                host=host,
-                port=port,
-                db_name=encode(&self.database_name));
+        let s = format!(
+            "postgres://{user}:{pass}@{host}:{port}/{db_name}",
+            user = encode(&self.database_user),
+            pass = encode(&self.database_password),
+            host = host,
+            port = port,
+            db_name = encode(&self.database_name)
+        );
 
         let mut url = url::Url::parse(&s)?;
 
@@ -603,30 +775,40 @@ impl PostgresSettings {
         let database_name = if self.database_name.starts_with("env:") {
             let var = self.database_name.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_name.to_string() };
+        } else {
+            self.database_name.to_string()
+        };
 
         let database_user = if self.database_user.starts_with("env:") {
             let var = self.database_user.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_user.to_string() };
+        } else {
+            self.database_user.to_string()
+        };
 
         let database_password = if self.database_password.starts_with("env:") {
             let var = self.database_password.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_password.to_string() };
+        } else {
+            self.database_password.to_string()
+        };
 
         let database_host = self.database_host.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         let database_port = self.database_port.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         let database_params = self.database_params.as_ref().map(|vars| {
@@ -646,7 +828,9 @@ impl PostgresSettings {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         Self {
@@ -661,7 +845,6 @@ impl PostgresSettings {
         }
     }
 }
-
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct MySqlSettings {
@@ -676,20 +859,36 @@ pub(crate) struct MySqlSettings {
 }
 impl MySqlSettings {
     pub(crate) fn connect_string(&self) -> Result<String> {
-        let host = self.database_host.clone().unwrap_or_else(|| "localhost".to_string());
-        let host = if host.is_empty() { "localhost".to_string() } else { host };
+        let host = self
+            .database_host
+            .clone()
+            .unwrap_or_else(|| "localhost".to_string());
+        let host = if host.is_empty() {
+            "localhost".to_string()
+        } else {
+            host
+        };
         let host = encode(&host);
 
-        let port = self.database_port.clone().unwrap_or_else(|| "3306".to_string());
-        let port = if port.is_empty() { "3306".to_string() } else { port };
+        let port = self
+            .database_port
+            .clone()
+            .unwrap_or_else(|| "3306".to_string());
+        let port = if port.is_empty() {
+            "3306".to_string()
+        } else {
+            port
+        };
         let port = encode(&port);
 
-        let s = format!("mysql://{user}:{pass}@{host}:{port}/{db_name}",
-                user=encode(&self.database_user),
-                pass=encode(&self.database_password),
-                host=host,
-                port=port,
-                db_name=encode(&self.database_name));
+        let s = format!(
+            "mysql://{user}:{pass}@{host}:{port}/{db_name}",
+            user = encode(&self.database_user),
+            pass = encode(&self.database_password),
+            host = host,
+            port = port,
+            db_name = encode(&self.database_name)
+        );
 
         let mut url = url::Url::parse(&s)?;
 
@@ -716,30 +915,40 @@ impl MySqlSettings {
         let database_name = if self.database_name.starts_with("env:") {
             let var = self.database_name.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_name.to_string() };
+        } else {
+            self.database_name.to_string()
+        };
 
         let database_user = if self.database_user.starts_with("env:") {
             let var = self.database_user.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_user.to_string() };
+        } else {
+            self.database_user.to_string()
+        };
 
         let database_password = if self.database_password.starts_with("env:") {
             let var = self.database_password.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_password.to_string() };
+        } else {
+            self.database_password.to_string()
+        };
 
         let database_host = self.database_host.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         let database_port = self.database_port.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         let database_params = self.database_params.as_ref().map(|vars| {
@@ -759,7 +968,9 @@ impl MySqlSettings {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
 
         Self {
@@ -775,7 +986,6 @@ impl MySqlSettings {
     }
 }
 
-
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct SqliteSettings {
     pub(crate) database_type: String,
@@ -789,13 +999,17 @@ impl SqliteSettings {
         let database_path = if self.database_path.starts_with("env:") {
             let var = self.database_path.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
-        } else { self.database_path.to_string() };
+        } else {
+            self.database_path.to_string()
+        };
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
-            } else { maybe_str.to_string() }
+            } else {
+                maybe_str.to_string()
+            }
         });
         Self {
             database_type,
@@ -804,7 +1018,6 @@ impl SqliteSettings {
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub(crate) enum ConfigurableSettings {
@@ -824,7 +1037,9 @@ impl ConfigurableSettings {
     pub(crate) fn migration_location(&self) -> Option<PathBuf> {
         match *self {
             ConfigurableSettings::Sqlite(ref s) => s.migration_location.as_ref().map(PathBuf::from),
-            ConfigurableSettings::Postgres(ref s) => s.migration_location.as_ref().map(PathBuf::from),
+            ConfigurableSettings::Postgres(ref s) => {
+                s.migration_location.as_ref().map(PathBuf::from)
+            }
             ConfigurableSettings::MySql(ref s) => s.migration_location.as_ref().map(PathBuf::from),
         }
     }
@@ -832,12 +1047,16 @@ impl ConfigurableSettings {
     pub(crate) fn database_path(&self) -> Result<PathBuf> {
         match *self {
             ConfigurableSettings::Sqlite(ref s) => Ok(PathBuf::from(&s.database_path)),
-            ConfigurableSettings::Postgres(ref s) => {
-                bail_fmt!(ErrorKind::Config, "Cannot generate database_path for database-type: {}", s.database_type)
-            }
-            ConfigurableSettings::MySql(ref s) => {
-                bail_fmt!(ErrorKind::Config, "Cannot generate database_path for database-type: {}", s.database_type)
-            }
+            ConfigurableSettings::Postgres(ref s) => bail_fmt!(
+                ErrorKind::Config,
+                "Cannot generate database_path for database-type: {}",
+                s.database_type
+            ),
+            ConfigurableSettings::MySql(ref s) => bail_fmt!(
+                ErrorKind::Config,
+                "Cannot generate database_path for database-type: {}",
+                s.database_type
+            ),
         }
     }
 
@@ -845,13 +1064,14 @@ impl ConfigurableSettings {
         match *self {
             ConfigurableSettings::Postgres(ref s) => s.connect_string(),
             ConfigurableSettings::MySql(ref s) => s.connect_string(),
-            ConfigurableSettings::Sqlite(ref s) => {
-                bail_fmt!(ErrorKind::Config, "Cannot generate connect-string for database-type: {}", s.database_type)
-            }
+            ConfigurableSettings::Sqlite(ref s) => bail_fmt!(
+                ErrorKind::Config,
+                "Cannot generate connect-string for database-type: {}",
+                s.database_type
+            ),
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 /// Project settings
@@ -909,7 +1129,6 @@ impl Settings {
         MySqlSettingsBuilder::default()
     }
 }
-
 
 #[derive(Debug, Clone)]
 /// Full project configuration
@@ -982,7 +1201,10 @@ impl Config {
     /// # }
     /// # fn main() { run().unwrap(); }
     /// ```
-    pub fn use_migrations<T: AsRef<[Box<Migratable>]>>(&mut self, migrations: T) -> Result<&mut Self> {
+    pub fn use_migrations<T: AsRef<[Box<Migratable>]>>(
+        &mut self,
+        migrations: T,
+    ) -> Result<&mut Self> {
         let migrations = migrations.as_ref();
         let mut set = HashSet::with_capacity(migrations.len());
         let mut migs = Vec::with_capacity(migrations.len());
@@ -990,16 +1212,28 @@ impl Config {
             let tag = mig.tag();
             if self.cli_compatible {
                 if invalid_full_tag(&tag) {
-                    bail_fmt!(ErrorKind::TagError, "When `cli_compatible=true` tags must be timestamped, \
-                                                    following: `[0-9]{{14}}_[a-z0-9-]+`. Found tag: `{}`", tag)
+                    bail_fmt!(
+                        ErrorKind::TagError,
+                        "When `cli_compatible=true` tags must be timestamped, \
+                         following: `[0-9]{{14}}_[a-z0-9-]+`. Found tag: `{}`",
+                        tag
+                    )
                 }
             } else if invalid_optional_stamp_tag(&tag) {
-                bail_fmt!(ErrorKind::TagError, "When `cli_compatible=false` (default) tags may only contain, \
-                                                `[a-z0-9-]` and may be optionally prefixed with a timestamp \
-                                                following: `([0-9]{{14}}_)?[a-z0-9-]+`. Found tag: `{}`", tag)
+                bail_fmt!(
+                    ErrorKind::TagError,
+                    "When `cli_compatible=false` (default) tags may only contain, \
+                     `[a-z0-9-]` and may be optionally prefixed with a timestamp \
+                     following: `([0-9]{{14}}_)?[a-z0-9-]+`. Found tag: `{}`",
+                    tag
+                )
             }
             if set.contains(&tag) {
-                bail_fmt!(ErrorKind::TagError, "Tags must be unique. Found duplicate: {}", tag)
+                bail_fmt!(
+                    ErrorKind::TagError,
+                    "Tags must be unique. Found duplicate: {}",
+                    tag
+                )
             }
             set.insert(tag);
             migs.push(mig.clone());
@@ -1012,7 +1246,6 @@ impl Config {
     pub fn is_explicit(&self) -> bool {
         self.migrations.is_some()
     }
-
 
     /// Toggle cli compatible tag validation.
     ///
@@ -1029,12 +1262,10 @@ impl Config {
         self.cli_compatible = compat;
     }
 
-
     /// Check the current cli compatibility
     pub fn is_cli_compatible(&self) -> bool {
         self.cli_compatible
     }
-
 
     /// Check that migration tags conform to naming requirements.
     /// If CLI compatibility is enabled, then tags must be prefixed with a timestamp
@@ -1045,12 +1276,20 @@ impl Config {
     fn check_saved_tag(&self, tag: &str) -> Result<()> {
         if self.cli_compatible {
             if invalid_full_tag(tag) {
-                bail_fmt!(ErrorKind::Migration, "Found a non-conforming tag in the database: `{}`. \
-                                                 Generated/CLI-compatible tags must follow `[0-9]{{14}}_[a-z0-9-]+`", tag)
+                bail_fmt!(
+                    ErrorKind::Migration,
+                    "Found a non-conforming tag in the database: `{}`. \
+                     Generated/CLI-compatible tags must follow `[0-9]{{14}}_[a-z0-9-]+`",
+                    tag
+                )
             }
         } else if invalid_optional_stamp_tag(&tag) {
-            bail_fmt!(ErrorKind::Migration, "Found a non-conforming tag in the database: `{}`. \
-                                             Managed/embedded tags may contain `[a-z0-9-]+`", tag)
+            bail_fmt!(
+                ErrorKind::Migration,
+                "Found a non-conforming tag in the database: `{}`. \
+                 Managed/embedded tags may contain `[a-z0-9-]+`",
+                tag
+            )
         }
         Ok(())
     }
@@ -1125,48 +1364,60 @@ impl Config {
     /// Load the applied migrations from the database migration table
     pub(crate) fn load_applied(&self) -> Result<Vec<String>> {
         if !self.migration_table_exists()? {
-            bail_fmt!(ErrorKind::Migration, "`__migrant_migrations` table is missing, maybe try re-setting-up? -> `setup`")
+            bail_fmt!(
+                ErrorKind::Migration,
+                "`__migrant_migrations` table is missing, maybe try re-setting-up? -> `setup`"
+            )
         }
 
         let applied = match self.settings.inner.db_kind() {
-            DbKind::Sqlite      => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
-            DbKind::Postgres    => drivers::pg::select_migrations(&self.connect_string()?)?,
-            DbKind::MySql       => drivers::mysql::select_migrations(&self.connect_string()?)?,
+            DbKind::Sqlite => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
+            DbKind::Postgres => drivers::pg::select_migrations(&self.connect_string()?)?,
+            DbKind::MySql => drivers::mysql::select_migrations(&self.connect_string()?)?,
         };
         let mut tags = vec![];
         for tag in applied.into_iter() {
             self.check_saved_tag(&tag)?;
             tags.push(tag);
         }
-        let tags = if !self.cli_compatible { tags } else {
-            let mut stamped = tags.into_iter().map(|tag| {
-                let stamp = tag.split('_').next()
-                    .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}", tag))?;
-                let stamp = chrono::Utc.datetime_from_str(stamp, DT_FORMAT)?;
-                Ok((stamp, tag.clone()))
-            }).collect::<Result<Vec<_>>>()?;
+        let tags = if !self.cli_compatible {
+            tags
+        } else {
+            let mut stamped = tags
+                .into_iter()
+                .map(|tag| {
+                    let stamp = tag.split('_').next().ok_or_else(|| {
+                        format_err!(ErrorKind::TagError, "Invalid tag format: {:?}", tag)
+                    })?;
+                    let stamp = chrono::Utc.datetime_from_str(stamp, DT_FORMAT)?;
+                    Ok((stamp, tag.clone()))
+                })
+                .collect::<Result<Vec<_>>>()?;
             stamped.sort_by(|a, b| a.0.cmp(&b.0));
             stamped.into_iter().map(|tup| tup.1).collect::<Vec<_>>()
         };
         Ok(tags)
     }
 
-
     /// Check if a __migrant_migrations table exists
     pub(crate) fn migration_table_exists(&self) -> Result<bool> {
         match self.settings.inner.db_kind() {
-            DbKind::Sqlite      => drivers::sqlite::migration_table_exists(&self.database_path_string()?),
-            DbKind::Postgres    => drivers::pg::migration_table_exists(&self.connect_string()?),
-            DbKind::MySql       => drivers::mysql::migration_table_exists(&self.connect_string()?),
+            DbKind::Sqlite => {
+                drivers::sqlite::migration_table_exists(&self.database_path_string()?)
+            }
+            DbKind::Postgres => drivers::pg::migration_table_exists(&self.connect_string()?),
+            DbKind::MySql => drivers::mysql::migration_table_exists(&self.connect_string()?),
         }
     }
 
     /// Insert given tag into database migration table
     pub(crate) fn insert_migration_tag(&self, tag: &str) -> Result<()> {
         match self.settings.inner.db_kind() {
-            DbKind::Sqlite      => drivers::sqlite::insert_migration_tag(&self.database_path_string()?, tag)?,
-            DbKind::Postgres    => drivers::pg::insert_migration_tag(&self.connect_string()?, tag)?,
-            DbKind::MySql       => drivers::mysql::insert_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::Sqlite => {
+                drivers::sqlite::insert_migration_tag(&self.database_path_string()?, tag)?
+            }
+            DbKind::Postgres => drivers::pg::insert_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::MySql => drivers::mysql::insert_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
     }
@@ -1174,9 +1425,11 @@ impl Config {
     /// Remove a given tag from the database migration table
     pub(crate) fn delete_migration_tag(&self, tag: &str) -> Result<()> {
         match self.settings.inner.db_kind() {
-            DbKind::Sqlite      => drivers::sqlite::remove_migration_tag(&self.database_path_string()?, tag)?,
-            DbKind::Postgres    => drivers::pg::remove_migration_tag(&self.connect_string()?, tag)?,
-            DbKind::MySql       => drivers::mysql::remove_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::Sqlite => {
+                drivers::sqlite::remove_migration_tag(&self.database_path_string()?, tag)?
+            }
+            DbKind::Postgres => drivers::pg::remove_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::MySql => drivers::mysql::remove_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
     }
@@ -1208,12 +1461,17 @@ impl Config {
                     error!("        Please initialize your database and user and then run `setup`");
                     error!("\n  ex) sudo -u postgres createdb {}", s.database_name);
                     error!("      sudo -u postgres createuser {}", s.database_user);
-                    error!("      sudo -u postgres psql -c \"alter user {} with password '****'\"", s.database_user);
+                    error!(
+                        "      sudo -u postgres psql -c \"alter user {} with password '****'\"",
+                        s.database_user
+                    );
                     error!("");
-                    bail_fmt!(ErrorKind::Config,
-                              "Cannot connect to postgres database with connection string: {:?}. \
-                               Do the database & user exist?",
-                              conn_str);
+                    bail_fmt!(
+                        ErrorKind::Config,
+                        "Cannot connect to postgres database with connection string: {:?}. \
+                         Do the database & user exist?",
+                        conn_str
+                    );
                 } else {
                     debug!("    - Connection confirmed ✓");
                 }
@@ -1225,17 +1483,26 @@ impl Config {
                     let localhost = String::from("localhost");
                     error!(" ERROR: Unable to connect to {}", conn_str);
                     error!("        Please initialize your database and user and then run `setup`");
-                    error!("\n  ex) mysql -u root -p -e \"create database {};\"", s.database_name);
+                    error!(
+                        "\n  ex) mysql -u root -p -e \"create database {};\"",
+                        s.database_name
+                    );
                     error!("      mysql -u root -p -e \"create user '{}'@'{}' identified by '*****';\"",
                            s.database_user, s.database_host.as_ref().unwrap_or(&localhost));
-                    error!("      mysql -u root -p e \"grant all privileges on {}.* to '{}'@'{}';\"",
-                           s.database_name, s.database_user, s.database_host.as_ref().unwrap_or(&localhost));
+                    error!(
+                        "      mysql -u root -p e \"grant all privileges on {}.* to '{}'@'{}';\"",
+                        s.database_name,
+                        s.database_user,
+                        s.database_host.as_ref().unwrap_or(&localhost)
+                    );
                     error!("      mysql -u root -p e \"flush privileges;\"");
                     error!("");
-                    bail_fmt!(ErrorKind::Config,
-                              "Cannot connect to mysql database with connection string: {:?}. \
-                               Do the database & user exist?",
-                              conn_str);
+                    bail_fmt!(
+                        ErrorKind::Config,
+                        "Cannot connect to mysql database with connection string: {:?}. \
+                         Do the database & user exist?",
+                        conn_str
+                    );
                 } else {
                     debug!("    - Connection confirmed ✓");
                 }
@@ -1275,15 +1542,25 @@ impl Config {
     /// If a relative path was provided, the path returned will be relative
     /// to either the settings file's directory if a settings file exists, or
     /// the current directory.
-    #[deprecated(since="0.18.1", note="renamed to `migration_location`")]
+    #[deprecated(since = "0.18.1", note = "renamed to `migration_location`")]
     pub fn migration_dir(&self) -> Result<PathBuf> {
-        let path = self.settings.inner.migration_location()
+        let path = self
+            .settings
+            .inner
+            .migration_location()
             .unwrap_or_else(|| PathBuf::from("migrations"));
-        Ok(if path.is_absolute() { path } else {
+        Ok(if path.is_absolute() {
+            path
+        } else {
             let cur_dir = env::current_dir()?;
             let base_path = match self.settings_path.as_ref() {
-                Some(s_path) => s_path.parent()
-                    .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", s_path))?,
+                Some(s_path) => s_path.parent().ok_or_else(|| {
+                    format_err!(
+                        ErrorKind::PathError,
+                        "Unable to determine parent path: {:?}",
+                        s_path
+                    )
+                })?,
                 None => &cur_dir,
             };
             base_path.join(path)
@@ -1299,13 +1576,23 @@ impl Config {
     /// to either the settings file's directory if a settings file exists, or
     /// the current directory.
     pub fn migration_location(&self) -> Result<PathBuf> {
-        let path = self.settings.inner.migration_location()
+        let path = self
+            .settings
+            .inner
+            .migration_location()
             .unwrap_or_else(|| PathBuf::from("migrations"));
-        Ok(if path.is_absolute() { path } else {
+        Ok(if path.is_absolute() {
+            path
+        } else {
             let cur_dir = env::current_dir()?;
             let base_path = match self.settings_path.as_ref() {
-                Some(s_path) => s_path.parent()
-                    .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", s_path))?,
+                Some(s_path) => s_path.parent().ok_or_else(|| {
+                    format_err!(
+                        ErrorKind::PathError,
+                        "Unable to determine parent path: {:?}",
+                        s_path
+                    )
+                })?,
                 None => &cur_dir,
             };
             base_path.join(path)
@@ -1319,7 +1606,8 @@ impl Config {
 
     fn database_path_string(&self) -> Result<String> {
         let path = self.database_path()?;
-        let path = path.to_str()
+        let path = path
+            .to_str()
             .ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid utf8 path: {:?}", path))?
             .to_owned();
         Ok(path)
@@ -1330,12 +1618,19 @@ impl Config {
     pub fn database_path(&self) -> Result<PathBuf> {
         let path = self.settings.inner.database_path()?;
         if path.is_absolute() {
-            Ok(path) }
-        else {
-            let spath = Path::new(self.settings_path.as_ref()
-                                  .ok_or_else(|| format_err!(ErrorKind::Config, "Settings path not specified"))?);
-            let spath = spath.parent()
-                .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", spath))?;
+            Ok(path)
+        } else {
+            let spath =
+                Path::new(self.settings_path.as_ref().ok_or_else(|| {
+                    format_err!(ErrorKind::Config, "Settings path not specified")
+                })?);
+            let spath = spath.parent().ok_or_else(|| {
+                format_err!(
+                    ErrorKind::PathError,
+                    "Unable to determine parent path: {:?}",
+                    spath
+                )
+            })?;
             Ok(spath.join(&path))
         }
     }
@@ -1346,4 +1641,3 @@ impl Config {
         self.settings.inner.connect_string()
     }
 }
-

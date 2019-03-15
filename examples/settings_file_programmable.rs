@@ -10,15 +10,14 @@ This should be run with `cargo run --example settings_file_programmable --featur
 */
 extern crate migrant_lib;
 
-#[cfg(feature="d-sqlite")]
-use std::env;
-#[cfg(feature="d-sqlite")]
-use migrant_lib::{Config, Migrator, Direction, EmbeddedMigration};
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 use migrant_lib::config::SqliteSettingsBuilder;
+#[cfg(feature = "d-sqlite")]
+use migrant_lib::{Config, Direction, EmbeddedMigration, Migrator};
+#[cfg(feature = "d-sqlite")]
+use std::env;
 
-
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 fn run() -> Result<(), Box<std::error::Error>> {
     let dir = env::current_dir().unwrap();
     let mut config = match migrant_lib::search_for_settings_file(&dir) {
@@ -27,13 +26,16 @@ fn run() -> Result<(), Box<std::error::Error>> {
                 .with_sqlite_options(
                     SqliteSettingsBuilder::empty()
                         .database_path("db/db.db")?
-                        .migration_location("migrations/managed")?)
+                        .migration_location("migrations/managed")?,
+                )
                 .initialize()?;
-            println!("\nSettings file and migrations table initialized. \
-                      Please run again to apply migrations.");
-            return Ok(())
+            println!(
+                "\nSettings file and migrations table initialized. \
+                 Please run again to apply migrations."
+            );
+            return Ok(());
         }
-        Some(p) => Config::from_settings_file(&p)?
+        Some(p) => Config::from_settings_file(&p)?,
     };
 
     // Define migrations
@@ -73,8 +75,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 fn run() -> Result<(), Box<std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
@@ -85,4 +86,3 @@ pub fn main() {
         println!("[ERROR] {}", e);
     }
 }
-

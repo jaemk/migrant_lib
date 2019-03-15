@@ -17,12 +17,11 @@ Note: Running without features will use the corresponding database shell command
 */
 extern crate migrant_lib;
 
-use std::env;
-use migrant_lib::Config;
 use migrant_lib::config::SqliteSettingsBuilder;
+use migrant_lib::Config;
+use std::env;
 // use migrant_lib::config::PostgresSettingsBuilder;
 // use migrant_lib::config::MySqlSettingsBuilder;
-
 
 fn run() -> Result<(), migrant_lib::Error> {
     let dir = env::current_dir().unwrap();
@@ -32,7 +31,8 @@ fn run() -> Result<(), migrant_lib::Error> {
                 .with_sqlite_options(
                     SqliteSettingsBuilder::empty()
                         .database_path("db/db.db")?
-                        .migration_location("migrations/managed")?)
+                        .migration_location("migrations/managed")?,
+                )
                 // .with_postgres_options(
                 //     PostgresSettingsBuilder::empty()
                 //         .database_name("testing")
@@ -52,11 +52,13 @@ fn run() -> Result<(), migrant_lib::Error> {
                 //         .database_params(&[("prefer_socket", "true")])
                 //         .migration_location("migrations/managed")?)
                 .initialize()?;
-            println!("\nSettings file and migrations table initialized. \
-                      Please run again to apply migrations.");
-            return Ok(())
+            println!(
+                "\nSettings file and migrations table initialized. \
+                 Please run again to apply migrations."
+            );
+            return Ok(());
         }
-        Some(p) => Config::from_settings_file(&p)?
+        Some(p) => Config::from_settings_file(&p)?,
     };
     let config = config.reload()?;
 

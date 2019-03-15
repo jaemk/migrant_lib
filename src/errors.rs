@@ -2,21 +2,20 @@
 Error types
 */
 
+use chrono;
+use serde_json;
 use std;
 use toml;
 use url;
-use chrono;
-use serde_json;
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 use rusqlite;
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 use postgres;
 
-#[cfg(feature="d-mysql")]
+#[cfg(feature = "d-mysql")]
 use mysql;
-
 
 error_chain! {
     foreign_links {
@@ -92,4 +91,3 @@ impl Error {
         }
     }
 }
-

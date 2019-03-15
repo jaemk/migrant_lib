@@ -1,15 +1,15 @@
+use super::*;
 use std::fs;
 use std::path::Path;
-use super::*;
 
-#[cfg(feature="d-sqlite")]
-use std::io::Read;
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 use rusqlite::{Connection, NO_PARAMS};
+#[cfg(feature = "d-sqlite")]
+use std::io::Read;
 
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 use std::process::Command;
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 use std::str;
 
 // --
@@ -20,8 +20,13 @@ pub fn create_file_if_missing(path: &Path) -> Result<bool> {
     if path.exists() {
         Ok(false)
     } else {
-        let db_dir = path.parent()
-            .ok_or_else(|| format_err!(ErrorKind::PathError, "Unable to determine parent path: {:?}", path))?;
+        let db_dir = path.parent().ok_or_else(|| {
+            format_err!(
+                ErrorKind::PathError,
+                "Unable to determine parent path: {:?}",
+                path
+            )
+        })?;
         fs::create_dir_all(db_dir)
             .chain_err(|| format!("Failed creating database directory: {:?}", db_dir))?;
         fs::File::create(path)
@@ -30,78 +35,84 @@ pub fn create_file_if_missing(path: &Path) -> Result<bool> {
     }
 }
 
-
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 fn sqlite_cmd(db_path: &str, cmd: &str) -> Result<String> {
     let out = Command::new("sqlite3")
-                    .arg(&db_path)
-                    .arg("-csv")
-                    .arg("-bail")
-                    .arg(cmd)
-                    .output()
-                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                              "Error running command `sqlite3`. Is it available on your PATH?"))?;
+        .arg(&db_path)
+        .arg("-csv")
+        .arg("-bail")
+        .arg(cmd)
+        .output()
+        .chain_err(|| {
+            format_err!(
+                ErrorKind::ShellCommand,
+                "Error running command `sqlite3`. Is it available on your PATH?"
+            )
+        })?;
     if !out.status.success() {
         let stderr = str::from_utf8(&out.stderr)?;
-        bail_fmt!(ErrorKind::Migration, "Error executing statement, stderr: `{}`", stderr);
+        bail_fmt!(
+            ErrorKind::Migration,
+            "Error executing statement, stderr: `{}`",
+            stderr
+        );
     }
     let stdout = String::from_utf8(out.stdout)?;
     Ok(stdout)
 }
 
-
 // --
 // Check `__migrant_migrations` table exists
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn migration_table_exists(db_path: &str) -> Result<bool> {
     let stdout = sqlite_cmd(db_path, sql::SQLITE_MIGRATION_TABLE_EXISTS)?;
     Ok(stdout.trim() == "1")
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn migration_table_exists(db_path: &str) -> Result<bool> {
     let conn = Connection::open(db_path)?;
-    let exists: bool = conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, NO_PARAMS, |row| row.get(0))?;
+    let exists: bool = conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, NO_PARAMS, |row| {
+        row.get(0)
+    })?;
     Ok(exists)
 }
-
 
 // --
 // Create `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn migration_setup(db_path: &Path) -> Result<bool> {
     let db_path = db_path.as_os_str().to_str().unwrap();
     if !migration_table_exists(db_path)? {
         sqlite_cmd(db_path, sql::CREATE_TABLE)?;
-        return Ok(true)
+        return Ok(true);
     }
     Ok(false)
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn migration_setup(db_path: &Path) -> Result<bool> {
     let db_path = db_path.to_str().unwrap();
     if !migration_table_exists(db_path)? {
         let conn = Connection::open(db_path)?;
         conn.execute(sql::CREATE_TABLE, NO_PARAMS)?;
-        return Ok(true)
+        return Ok(true);
     }
     Ok(false)
 }
 
-
 // --
 // Select all migrations from `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let stdout = sqlite_cmd(db_path, sql::GET_MIGRATIONS)?;
     Ok(stdout.trim().lines().map(String::from).collect::<Vec<_>>())
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let conn = Connection::open(db_path)?;
     let mut stmt = conn.prepare(sql::GET_MIGRATIONS)?;
@@ -113,88 +124,98 @@ pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     Ok(migs)
 }
 
-
 // --
 // Insert tag into `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     sqlite_cmd(db_path, &sql::SQLITE_ADD_MIGRATION.replace("__VAL__", tag))?;
     Ok(())
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     let conn = Connection::open(db_path)?;
-    conn.execute("insert into __migrant_migrations (tag) values ($1)", &[&tag])?;
+    conn.execute(
+        "insert into __migrant_migrations (tag) values ($1)",
+        &[&tag],
+    )?;
     Ok(())
 }
-
 
 // --
 // Remove tag from `__migrant_migrations` table
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
-    sqlite_cmd(db_path, &sql::SQLITE_DELETE_MIGRATION.replace("__VAL__", tag))?;
+    sqlite_cmd(
+        db_path,
+        &sql::SQLITE_DELETE_MIGRATION.replace("__VAL__", tag),
+    )?;
     Ok(())
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
     let conn = Connection::open(db_path)?;
     conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
     Ok(())
 }
 
-
 // --
 // Apply migration file to database
 // --
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
-    let db_path = db_path.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid db path: {:?}", db_path))?;
-    let filename = filename.to_str().ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
+    let db_path = db_path
+        .to_str()
+        .ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid db path: {:?}", db_path))?;
+    let filename = filename
+        .to_str()
+        .ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid file path: {:?}", filename))?;
     sqlite_cmd(db_path, &format!(".read {}", filename))?;
     Ok(())
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn run_migration(db_path: &Path, filename: &Path) -> Result<()> {
     let mut file = fs::File::open(filename)?;
     let mut buf = String::new();
     file.read_to_string(&mut buf)?;
-    if buf.is_empty() { return Ok(()); }
+    if buf.is_empty() {
+        return Ok(());
+    }
 
-    let conn = Connection::open(db_path)
-        .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     conn.execute_batch(&buf)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
 }
 
-
-#[cfg(not(feature="d-sqlite"))]
-pub fn run_migration_str(_db_path: &Path, _stmt: &str) -> Result<connection::markers::SqliteFeatureRequired> {
+#[cfg(not(feature = "d-sqlite"))]
+pub fn run_migration_str(
+    _db_path: &Path,
+    _stmt: &str,
+) -> Result<connection::markers::SqliteFeatureRequired> {
     panic!("\n** Migrant ERROR: `d-sqlite` feature required **");
 }
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 pub fn run_migration_str(db_path: &Path, stmt: &str) -> Result<()> {
-    if stmt.is_empty() { return Ok(()); }
+    if stmt.is_empty() {
+        return Ok(());
+    }
 
-    let conn = Connection::open(db_path)
-        .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+    let conn = Connection::open(db_path).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     conn.execute_batch(stmt)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
 }
 
-
 #[cfg(test)]
 mod test {
-    use std;
     use super::*;
+    use std;
     macro_rules! _try {
         ($exp:expr) => {
             match $exp {
@@ -204,13 +225,13 @@ mod test {
                     panic!(e)
                 }
             }
-        }
+        };
     }
 
     #[test]
     fn sqlite() {
-        let conn_str = std::env::var("SQLITE_TEST_CONN_STR")
-            .expect("SQLITE_TEST_CONN_STR env var required");
+        let conn_str =
+            std::env::var("SQLITE_TEST_CONN_STR").expect("SQLITE_TEST_CONN_STR env var required");
         let path = std::path::Path::new(&conn_str);
 
         // no table before setup
@@ -219,7 +240,10 @@ mod test {
 
         // setup migration table
         let was_setup = _try!(migration_setup(&path));
-        assert_eq!(true, was_setup, "Assert `migration_setup` initializes migration table");
+        assert_eq!(
+            true, was_setup,
+            "Assert `migration_setup` initializes migration table"
+        );
         let was_setup = _try!(migration_setup(&path));
         assert_eq!(false, was_setup, "Assert `migration_setup` is idempotent");
 
