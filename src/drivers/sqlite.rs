@@ -107,9 +107,8 @@ pub fn select_migrations(db_path: &str) -> Result<Vec<String>> {
     let mut stmt = conn.prepare(sql::GET_MIGRATIONS)?;
     let mut rows = stmt.query(NO_PARAMS)?;
     let mut migs = vec![];
-    while let Some(row) = rows.next() {
-        let row = row?;
-        migs.push(row.get(0));
+    while let Some(row) = rows.next()? {
+        migs.push(row.get(0)?);
     }
     Ok(migs)
 }
