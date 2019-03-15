@@ -601,30 +601,30 @@ impl PostgresSettings {
         let database_type = self.database_type.clone();
 
         let database_name = if self.database_name.starts_with("env:") {
-            let var = self.database_name.trim_left_matches("env:");
+            let var = self.database_name.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_name.to_string() };
 
         let database_user = if self.database_user.starts_with("env:") {
-            let var = self.database_user.trim_left_matches("env:");
+            let var = self.database_user.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_user.to_string() };
 
         let database_password = if self.database_password.starts_with("env:") {
-            let var = self.database_password.trim_left_matches("env:");
+            let var = self.database_password.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_password.to_string() };
 
         let database_host = self.database_host.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
 
         let database_port = self.database_port.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
@@ -632,7 +632,7 @@ impl PostgresSettings {
         let database_params = self.database_params.as_ref().map(|vars| {
             vars.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
                 let val = if v.starts_with("env:") {
-                    let v = v.trim_left_matches("env:");
+                    let v = v.trim_start_matches("env:");
                     env::var(v).unwrap_or_else(|_| "".into())
                 } else {
                     v.clone()
@@ -644,7 +644,7 @@ impl PostgresSettings {
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
@@ -714,30 +714,30 @@ impl MySqlSettings {
         let database_type = self.database_type.clone();
 
         let database_name = if self.database_name.starts_with("env:") {
-            let var = self.database_name.trim_left_matches("env:");
+            let var = self.database_name.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_name.to_string() };
 
         let database_user = if self.database_user.starts_with("env:") {
-            let var = self.database_user.trim_left_matches("env:");
+            let var = self.database_user.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_user.to_string() };
 
         let database_password = if self.database_password.starts_with("env:") {
-            let var = self.database_password.trim_left_matches("env:");
+            let var = self.database_password.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_password.to_string() };
 
         let database_host = self.database_host.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
 
         let database_port = self.database_port.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
@@ -745,7 +745,7 @@ impl MySqlSettings {
         let database_params = self.database_params.as_ref().map(|vars| {
             vars.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
                 let val = if v.starts_with("env:") {
-                    let v = v.trim_left_matches("env:");
+                    let v = v.trim_start_matches("env:");
                     env::var(v).unwrap_or_else(|_| "".into())
                 } else {
                     v.clone()
@@ -757,7 +757,7 @@ impl MySqlSettings {
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
@@ -787,13 +787,13 @@ impl SqliteSettings {
         let database_type = self.database_type.clone();
 
         let database_path = if self.database_path.starts_with("env:") {
-            let var = self.database_path.trim_left_matches("env:");
+            let var = self.database_path.trim_start_matches("env:");
             env::var(var).unwrap_or_else(|_| "".into())
         } else { self.database_path.to_string() };
 
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
-                let var = maybe_str.trim_left_matches("env:");
+                let var = maybe_str.trim_start_matches("env:");
                 env::var(var).unwrap_or_else(|_| "".into())
             } else { maybe_str.to_string() }
         });
