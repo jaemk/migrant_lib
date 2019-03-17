@@ -13,19 +13,16 @@ This should be run with `cargo run --example embedded_cli_compatible --features 
 */
 extern crate migrant_lib;
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
+use migrant_lib::{Config, Direction, EmbeddedMigration, Migrator, Settings};
+#[cfg(feature = "d-sqlite")]
 use std::env;
-#[cfg(feature="d-sqlite")]
-use migrant_lib::{Config, Settings, Migrator, Direction, EmbeddedMigration};
 
-
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 fn run() -> Result<(), Box<std::error::Error>> {
     let path = env::current_dir()?;
     let path = path.join("db/embedded_example.db");
-    let settings = Settings::configure_sqlite()
-        .database_path(&path)?
-        .build()?;
+    let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
 
     let mut config = Config::with_settings(&settings);
 
@@ -39,12 +36,20 @@ fn run() -> Result<(), Box<std::error::Error>> {
     // Define migrations
     config.use_migrations(&[
         EmbeddedMigration::with_tag("20180105040947_initial")
-            .up(include_str!("../migrations/managed/20180105040947_initial/up.sql"))
-            .down(include_str!("../migrations/managed/20180105040947_initial/down.sql"))
+            .up(include_str!(
+                "../migrations/managed/20180105040947_initial/up.sql"
+            ))
+            .down(include_str!(
+                "../migrations/managed/20180105040947_initial/down.sql"
+            ))
             .boxed(),
         EmbeddedMigration::with_tag("20180105040952_second")
-            .up(include_str!("../migrations/managed/20180105040952_second/up.sql"))
-            .down(include_str!("../migrations/managed/20180105040952_second/down.sql"))
+            .up(include_str!(
+                "../migrations/managed/20180105040952_second/up.sql"
+            ))
+            .down(include_str!(
+                "../migrations/managed/20180105040952_second/down.sql"
+            ))
             .boxed(),
     ])?;
 
@@ -73,8 +78,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
     Ok(())
 }
 
-
-#[cfg(not(feature="d-sqlite"))]
+#[cfg(not(feature = "d-sqlite"))]
 fn run() -> Result<(), Box<std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
@@ -85,4 +89,3 @@ pub fn main() {
         println!("[ERROR] {}", e);
     }
 }
-

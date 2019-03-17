@@ -1,7 +1,6 @@
+use errors::*;
 ///! Database migration connection
 use {Config, DbKind};
-use errors::*;
-
 
 #[allow(dead_code)]
 pub mod markers {
@@ -13,7 +12,6 @@ pub mod markers {
 }
 #[allow(unused_imports)]
 use self::markers::*;
-
 
 /// Database connection information
 #[allow(dead_code)]
@@ -31,27 +29,26 @@ impl<'a> ConnConfig<'a> {
     }
 
     /// Return a connection string for postgres or mysql
-    #[cfg(not(any(feature="d-postgres", feature="d-mysql")))]
+    #[cfg(not(any(feature = "d-postgres", feature = "d-mysql")))]
     pub fn connect_string(&self) -> Result<PostgresOrMySQLFeatureRequired> {
         unimplemented!()
     }
 
     /// Return a connection string for postgres or mysql
-    #[cfg(any(feature="d-postgres", feature="d-mysql"))]
+    #[cfg(any(feature = "d-postgres", feature = "d-mysql"))]
     pub fn connect_string(&self) -> Result<String> {
         self.config.connect_string()
     }
 
     /// Return a sqlite database path
-    #[cfg(not(feature="d-sqlite"))]
+    #[cfg(not(feature = "d-sqlite"))]
     pub fn database_path(&self) -> Result<SqliteFeatureRequired> {
         unimplemented!()
     }
 
     /// Return a sqlite database path
-    #[cfg(feature="d-sqlite")]
+    #[cfg(feature = "d-sqlite")]
     pub fn database_path(&self) -> Result<::std::path::PathBuf> {
         self.config.database_path()
     }
 }
-

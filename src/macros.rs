@@ -3,7 +3,6 @@ Macros
 
 */
 
-
 macro_rules! print_flush {
     ($lit:expr) => {
         print_flush!($lit,)
@@ -16,7 +15,6 @@ macro_rules! print_flush {
         }
     }
 }
-
 
 // -------------
 // error-chain
@@ -32,7 +30,6 @@ macro_rules! format_err {
     }
 }
 
-
 /// Helper for formatting strings with error-chain's `bail!` macro
 macro_rules! bail_fmt {
     ($error:expr, $str:expr) => {
@@ -42,4 +39,3 @@ macro_rules! bail_fmt {
         bail!(format_err!($error, $str, $($arg),*))
     }
 }
-

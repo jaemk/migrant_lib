@@ -107,60 +107,63 @@ See [CONTRIBUTING](https://github.com/jaemk/migrant_lib/blob/master/CONTRIBUTING
 */
 
 #![recursion_limit = "1024"]
-#[macro_use] extern crate error_chain;
-#[macro_use] extern crate log;
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate error_chain;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate serde_derive;
+extern crate chrono;
+extern crate percent_encoding;
+extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate toml;
-extern crate chrono;
-extern crate walkdir;
-extern crate regex;
-extern crate percent_encoding;
 extern crate url;
+extern crate walkdir;
 
-#[cfg(feature="d-postgres")]
+#[cfg(feature = "d-postgres")]
 extern crate postgres;
 
-#[cfg(feature="d-sqlite")]
+#[cfg(feature = "d-sqlite")]
 extern crate rusqlite;
 
-#[cfg(feature="d-mysql")]
+#[cfg(feature = "d-mysql")]
 extern crate mysql;
 
 use std::collections::HashMap;
-use std::process::Command;
+use std::env;
+use std::ffi::OsStr;
+use std::fmt;
+use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
-use std::fs;
-use std::fmt;
-use std::env;
+use std::process::Command;
 
-use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 use chrono::{TimeZone, Utc};
-use walkdir::WalkDir;
+use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
 use regex::Regex;
+use walkdir::WalkDir;
 
-#[macro_use] mod macros;
-pub mod errors;
-mod drivers;
-mod migratable;
-mod connection;
+#[macro_use]
+mod macros;
 pub mod config;
+mod connection;
+mod drivers;
+pub mod errors;
+mod migratable;
 pub mod migration;
 
+pub use config::{Config, Settings};
+pub use connection::ConnConfig;
 pub use errors::*;
 pub use migratable::Migratable;
-pub use config::{Config, Settings};
-pub use migration::{FileMigration, EmbeddedMigration, FnMigration};
-pub use connection::ConnConfig;
-
+pub use migration::{EmbeddedMigration, FileMigration, FnMigration};
 
 static CONFIG_FILE: &'static str = "Migrant.toml";
 static DT_FORMAT: &'static str = "%Y%m%d%H%M%S";
-
 
 static SQLITE_CONFIG_TEMPLATE: &'static str = r#"
 # Required, do not edit
@@ -175,7 +178,6 @@ database_path = "__DB_PATH__"
 migration_location = "__MIG_LOC__"  # default "migrations"
 
 "#;
-
 
 static PG_CONFIG_TEMPLATE: &'static str = r#"
 # Required, do not edit
@@ -219,8 +221,6 @@ migration_location = "__MIG_LOC__"  # default "migrations"
 [database_params]
 "#;
 
-
-
 lazy_static! {
     // Check if a tag contains any illegal characters
     static ref BAD_TAG_RE: Regex = Regex::new(r"[^a-z0-9-]+").expect("failed to compile regex");
@@ -231,7 +231,6 @@ lazy_static! {
     // For verifying complete tag names that may optionally be prefixed with a timestamp
     static ref FULL_TAG_OPT_STAMP_RE: Regex = Regex::new(r"([0-9]{14}_)?[a-z0-9-]+").expect("failed to compile regex");
 }
-
 
 /// Database type being used
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -254,19 +253,12 @@ impl std::str::FromStr for DbKind {
 impl fmt::Display for DbKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            DbKind::Postgres => {
-                write!(f, "postgres")
-            }
-            DbKind::Sqlite => {
-                write!(f, "sqlite")
-            }
-            DbKind::MySql => {
-                write!(f, "mysql")
-            }
+            DbKind::Postgres => write!(f, "postgres"),
+            DbKind::Sqlite => write!(f, "sqlite"),
+            DbKind::MySql => write!(f, "mysql"),
         }
     }
 }
-
 
 /// Write the provided bytes to the specified path
 fn write_to_path(path: &Path, content: &[u8]) -> Result<()> {
@@ -275,23 +267,25 @@ fn write_to_path(path: &Path, content: &[u8]) -> Result<()> {
     Ok(())
 }
 
-
 /// Run the given command in the foreground
 fn open_file_in_fg(command: &str, file_path: &str) -> Result<()> {
-    let mut p = Command::new(command)
-        .arg(file_path)
-        .spawn()?;
+    let mut p = Command::new(command).arg(file_path).spawn()?;
     let ret = p.wait()?;
-    if !ret.success() { bail_fmt!(ErrorKind::ShellCommand, "Command `{}` exited with status `{}`", command, ret) }
+    if !ret.success() {
+        bail_fmt!(
+            ErrorKind::ShellCommand,
+            "Command `{}` exited with status `{}`",
+            command,
+            ret
+        )
+    }
     Ok(())
 }
-
 
 /// Percent encode a string
 fn encode(s: &str) -> String {
     percent_encode(s.as_bytes(), DEFAULT_ENCODE_SET).to_string()
 }
-
 
 /// Prompt the user and return their input
 fn prompt(msg: &str) -> Result<String> {
@@ -301,7 +295,6 @@ fn prompt(msg: &str) -> Result<String> {
     io::stdin().read_line(&mut resp)?;
     Ok(resp.trim().to_string())
 }
-
 
 #[derive(Debug, Clone)]
 /// Represents direction to apply migrations.
@@ -316,12 +309,11 @@ impl fmt::Display for Direction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use Direction::*;
         match *self {
-            Up   => write!(f, "Up"),
+            Up => write!(f, "Up"),
             Down => write!(f, "Down"),
         }
     }
 }
-
 
 #[derive(Debug, Clone)]
 /// Migration applicator
@@ -408,36 +400,40 @@ impl Migrator {
     }
 
     /// Return the next available up or down migration
-    fn next_available<'a>(direction: &Direction, available: &'a [Box<Migratable>],
-                          applied: &[String]) -> Result<Option<&'a Box<Migratable>>> {
+    fn next_available<'a>(
+        direction: &Direction,
+        available: &'a [Box<Migratable>],
+        applied: &[String],
+    ) -> Result<Option<&'a Box<Migratable>>> {
         Ok(match *direction {
             Direction::Up => {
                 for mig in available {
                     let tag = mig.tag();
                     if !applied.contains(&tag) {
-                        return Ok(Some(mig))
+                        return Ok(Some(mig));
                     }
                 }
                 None
             }
-            Direction::Down => {
-                match applied.last() {
-                    Some(tag) => {
-                        let mig = available.iter().rev().find(|m| &m.tag() == tag);
-                        match mig {
-                            None => bail_fmt!(ErrorKind::MigrationNotFound, "Tag not found: {}", tag),
-                            Some(mig) => Some(mig),
-                        }
+            Direction::Down => match applied.last() {
+                Some(tag) => {
+                    let mig = available.iter().rev().find(|m| &m.tag() == tag);
+                    match mig {
+                        None => bail_fmt!(ErrorKind::MigrationNotFound, "Tag not found: {}", tag),
+                        Some(mig) => Some(mig),
                     }
-                    None => None,
                 }
-            }
+                None => None,
+            },
         })
     }
 
     /// Apply the migration in the specified direction
-    fn run_migration(config: &Config, direction: &Direction,
-                     migration: &Box<Migratable>) -> std::result::Result<(), Box<std::error::Error>> {
+    fn run_migration(
+        config: &Config,
+        direction: &Direction,
+        migration: &Box<Migratable>,
+    ) -> std::result::Result<(), Box<std::error::Error>> {
         let db_kind = config.settings.inner.db_kind();
         Ok(match *direction {
             Direction::Up => {
@@ -467,14 +463,28 @@ impl Migrator {
             Some(ref migrations) => migrations.clone(),
             None => {
                 let mig_dir = config.migration_location()?;
-                search_for_migrations(&mig_dir)?.into_iter()
-                    .map(|fm| fm.boxed()).collect()
+                search_for_migrations(&mig_dir)?
+                    .into_iter()
+                    .map(|fm| fm.boxed())
+                    .collect()
             }
         };
-        match Self::next_available(&self.direction, migrations.as_slice(), config.applied.as_slice())? {
-            None => bail_fmt!(ErrorKind::MigrationComplete, "No un-applied `{}` migrations found", self.direction),
+        match Self::next_available(
+            &self.direction,
+            migrations.as_slice(),
+            config.applied.as_slice(),
+        )? {
+            None => bail_fmt!(
+                ErrorKind::MigrationComplete,
+                "No un-applied `{}` migrations found",
+                self.direction
+            ),
             Some(next) => {
-                self.print(&format!("Applying[{}]: {}", self.direction, next.description(&self.direction)));
+                self.print(&format!(
+                    "Applying[{}]: {}",
+                    self.direction,
+                    next.description(&self.direction)
+                ));
 
                 if self.fake {
                     self.println("  ✓ (fake)");
@@ -488,7 +498,11 @@ impl Migrator {
                                     &format!(" ** Error ** (Continuing because `--force` flag was specified)\n ** {}", e)
                                     );
                             } else {
-                                bail_fmt!(ErrorKind::Migration, "Migration was unsucessful...\n{}", e);
+                                bail_fmt!(
+                                    ErrorKind::Migration,
+                                    "Migration was unsucessful...\n{}",
+                                    e
+                                );
                             }
                         }
                     };
@@ -513,14 +527,15 @@ impl Migrator {
             match res {
                 Ok(_) => (),
                 Err(error) => {
-                    if !error.is_migration_complete() { return Err(error) }
+                    if !error.is_migration_complete() {
+                        return Err(error);
+                    }
                 }
             }
         }
         Ok(())
     }
 }
-
 
 /// Search for a `Migrant.toml` file in the current and parent directories
 pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
@@ -530,7 +545,9 @@ pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
         for path in fs::read_dir(&base).unwrap() {
             let path = path.unwrap().path();
             if let Some(file) = path.file_name() {
-                if file == CONFIG_FILE { return Some(path.clone()); }
+                if file == CONFIG_FILE {
+                    return Some(path.clone());
+                }
             }
         }
         if base.parent().is_some() {
@@ -541,7 +558,6 @@ pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
     }
 }
 
-
 /// Search for available migrations in the given migration directory
 ///
 /// Intended only for use with `FileMigration`s not managed directly in source
@@ -550,11 +566,15 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
     // collect any .sql files into a Map<`stamp-tag`, Vec<up&down files>>
     let mut files = HashMap::new();
     for dir in WalkDir::new(mig_root) {
-        if dir.is_err() { break; }
+        if dir.is_err() {
+            break;
+        }
         let e = dir.unwrap();
         let path = e.path();
         if let Some(ext) = path.extension() {
-            if ext.is_empty() || ext != "sql" { continue; }
+            if ext.is_empty() || ext != "sql" {
+                continue;
+            }
             let parent = path.parent().unwrap();
             let key = format!("{}", parent.display());
             let entry = files.entry(key).or_insert_with(Vec::new);
@@ -566,27 +586,54 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
     let mut migrations = vec![];
     for (path, migs) in &files {
         let full_name = PathBuf::from(path);
-        let full_name = full_name.file_name()
+        let full_name = full_name
+            .file_name()
             .and_then(OsStr::to_str)
-            .ok_or_else(|| format_err!(ErrorKind::PathError, "Error extracting file-name from: {:?}", full_name))?;
+            .ok_or_else(|| {
+                format_err!(
+                    ErrorKind::PathError,
+                    "Error extracting file-name from: {:?}",
+                    full_name
+                )
+            })?;
         let mut full_name_iter = full_name.split('_');
-        let stamp = full_name_iter.next()
-            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}, \
-                                                             must follow `<timestamp>_<tag>`", full_name))?;
-        let tag = full_name_iter.next()
-            .ok_or_else(|| format_err!(ErrorKind::TagError, "Invalid tag format: {:?}, \
-                                                             must follow `<timestamp>_<tag>`", full_name))?;
-        let stamp = Utc.datetime_from_str(stamp, DT_FORMAT)
-            .chain_err(|| format_err!(ErrorKind::TagError, "Invalid timestamp format {:?}, on tag: {:?}, must follow `{}`",
-                                      stamp, full_name, DT_FORMAT))?;
+        let stamp = full_name_iter.next().ok_or_else(|| {
+            format_err!(
+                ErrorKind::TagError,
+                "Invalid tag format: {:?}, \
+                 must follow `<timestamp>_<tag>`",
+                full_name
+            )
+        })?;
+        let tag = full_name_iter.next().ok_or_else(|| {
+            format_err!(
+                ErrorKind::TagError,
+                "Invalid tag format: {:?}, \
+                 must follow `<timestamp>_<tag>`",
+                full_name
+            )
+        })?;
+        let stamp = Utc.datetime_from_str(stamp, DT_FORMAT).chain_err(|| {
+            format_err!(
+                ErrorKind::TagError,
+                "Invalid timestamp format {:?}, on tag: {:?}, must follow `{}`",
+                stamp,
+                full_name,
+                DT_FORMAT
+            )
+        })?;
 
         let mut up = None;
         let mut down = None;
 
         for mig in migs.iter() {
-            let up_down = mig.file_stem()
-                .and_then(OsStr::to_str)
-                .ok_or_else(|| format_err!(ErrorKind::PathError, "Error extracting file-stem from: {:?}", full_name))?;
+            let up_down = mig.file_stem().and_then(OsStr::to_str).ok_or_else(|| {
+                format_err!(
+                    ErrorKind::PathError,
+                    "Error extracting file-stem from: {:?}",
+                    full_name
+                )
+            })?;
             match up_down {
                 "up" => up = Some(mig.clone()),
                 "down" => down = Some(mig.clone()),
@@ -594,10 +641,18 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
             };
         }
         if up.is_none() {
-            bail_fmt!(ErrorKind::MigrationNotFound, "Up migration not found for tag: {}", tag)
+            bail_fmt!(
+                ErrorKind::MigrationNotFound,
+                "Up migration not found for tag: {}",
+                tag
+            )
         }
         if down.is_none() {
-            bail_fmt!(ErrorKind::MigrationNotFound, "Down migration not found for tag: {}", tag)
+            bail_fmt!(
+                ErrorKind::MigrationNotFound,
+                "Down migration not found for tag: {}",
+                tag
+            )
         }
         migrations.push(FileMigration {
             up: up,
@@ -611,7 +666,6 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
     migrations.sort_by(|a, b| a.stamp.unwrap().cmp(&b.stamp.unwrap()));
     Ok(migrations)
 }
-
 
 /// List the currently applied and available migrations under `migration_location`
 pub fn list(config: &Config) -> Result<()> {
@@ -636,35 +690,35 @@ pub fn list(config: &Config) -> Result<()> {
     };
 
     if available.is_empty() {
-        return Ok(())
+        return Ok(());
     }
     println!("Current Migration Status:");
     for mig in &available {
         let tagname = mig.tag();
         let x = config.applied.contains(&tagname);
-        println!(" -> [{x}] {name}", x=if x { '✓' } else { ' ' }, name=tagname);
+        println!(
+            " -> [{x}] {name}",
+            x = if x { '✓' } else { ' ' },
+            name = tagname
+        );
     }
     Ok(())
 }
-
 
 /// Returns true if tag name contains illegal characters
 fn invalid_tag(tag: &str) -> bool {
     BAD_TAG_RE.is_match(tag)
 }
 
-
 /// Returns true if full optionally timestamped tag is invalid
 fn invalid_optional_stamp_tag(tag: &str) -> bool {
     FULL_TAG_OPT_STAMP_RE.captures_iter(tag).count() != 1
 }
 
-
 /// Return true if the full tag is invalid
 fn invalid_full_tag(tag: &str) -> bool {
     !FULL_TAG_RE.is_match(tag)
 }
-
 
 /// Create a new migration with the given tag
 ///
@@ -675,11 +729,15 @@ fn invalid_full_tag(tag: &str) -> bool {
 /// the expected timestamp formatted name.
 pub fn new(config: &Config, tag: &str) -> Result<()> {
     if invalid_tag(tag) {
-        bail_fmt!(ErrorKind::Migration, "Invalid tag `{}`. Tags can contain [a-z0-9-]", tag);
+        bail_fmt!(
+            ErrorKind::Migration,
+            "Invalid tag `{}`. Tags can contain [a-z0-9-]",
+            tag
+        );
     }
     let now = chrono::Utc::now();
     let dt_string = now.format(DT_FORMAT).to_string();
-    let folder = format!("{stamp}_{tag}", stamp=dt_string, tag=tag);
+    let folder = format!("{stamp}_{tag}", stamp = dt_string, tag = tag);
 
     let mig_dir = config.migration_location()?.join(folder);
 
@@ -694,7 +752,6 @@ pub fn new(config: &Config, tag: &str) -> Result<()> {
     }
     Ok(())
 }
-
 
 /// Open a repl connection to the given `Config` settings
 ///
@@ -711,35 +768,46 @@ pub fn shell(config: &Config) -> Result<()> {
         DbKind::Sqlite => {
             let db_path = config.database_path()?;
             let _ = Command::new("sqlite3")
-                    .arg(db_path.to_str().unwrap())
-                    .spawn()
-                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                              "Error running command `sqlite3`. Is it available on your PATH?"))?
-                    .wait()?;
+                .arg(db_path.to_str().unwrap())
+                .spawn()
+                .chain_err(|| {
+                    format_err!(
+                        ErrorKind::ShellCommand,
+                        "Error running command `sqlite3`. Is it available on your PATH?"
+                    )
+                })?
+                .wait()?;
         }
         DbKind::Postgres => {
             let conn_str = config.connect_string()?;
             Command::new("psql")
-                    .arg(&conn_str)
-                    .spawn()
-                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                              "Error running command `psql`. Is it available on your PATH?"))?
-                    .wait()?;
+                .arg(&conn_str)
+                .spawn()
+                .chain_err(|| {
+                    format_err!(
+                        ErrorKind::ShellCommand,
+                        "Error running command `psql`. Is it available on your PATH?"
+                    )
+                })?
+                .wait()?;
         }
         DbKind::MySql => {
             let conn_str = config.connect_string()?;
             Command::new("mysqlsh")
-                    .arg("--sql")
-                    .arg("--uri")
-                    .arg(conn_str)
-                    .spawn()
-                    .chain_err(|| format_err!(ErrorKind::ShellCommand,
-                                              "Error running command `mysqhlsh`. Is it available on your PATH?"))?
-                    .wait()?;
+                .arg("--sql")
+                .arg("--uri")
+                .arg(conn_str)
+                .spawn()
+                .chain_err(|| {
+                    format_err!(
+                        ErrorKind::ShellCommand,
+                        "Error running command `mysqhlsh`. Is it available on your PATH?"
+                    )
+                })?
+                .wait()?;
         }
     })
 }
-
 
 /// Get user's selection of a set of migrations
 fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'a FileMigration> {
@@ -748,8 +816,12 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
     loop {
         println!("* Migrations matching `{}`:", tag);
         for (row, mig) in matches.iter().enumerate() {
-            let dt_string = mig.stamp.expect("Timestamp missing").format(DT_FORMAT).to_string();
-            let info = format!("{stamp}_{tag}", stamp=dt_string, tag=mig.tag);
+            let dt_string = mig
+                .stamp
+                .expect("Timestamp missing")
+                .format(DT_FORMAT)
+                .to_string();
+            let info = format!("{stamp}_{tag}", stamp = dt_string, tag = mig.tag);
             println!("    {}) {}", row + 1, info);
         }
         print!("\n Please select a migration [1-{}] >> ", max);
@@ -762,8 +834,9 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
                 continue;
             }
             Ok(n) => {
-                if min <= n && n <= max { n - 1 }
-                else {
+                if min <= n && n <= max {
+                    n - 1
+                } else {
                     println!("\nPlease select a number between 1-{}", max);
                     continue;
                 }
@@ -772,7 +845,6 @@ fn select_from_matches<'a>(tag: &str, matches: &'a [FileMigration]) -> Result<&'
         return Ok(&matches[n]);
     }
 }
-
 
 /// Open a migration file containing `tag` in its name
 ///
@@ -788,10 +860,13 @@ pub fn edit(config: &Config, tag: &str, up_down: &Direction) -> Result<()> {
     let available = search_for_migrations(&mig_dir)?;
     if available.is_empty() {
         println!("No migrations found under {:?}", &mig_dir);
-        return Ok(())
+        return Ok(());
     }
 
-    let matches = available.into_iter().filter(|m| m.tag.contains(tag)).collect::<Vec<_>>();
+    let matches = available
+        .into_iter()
+        .filter(|m| m.tag.contains(tag))
+        .collect::<Vec<_>>();
     let n = matches.len();
     let editor = env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
     let mig = match n {
@@ -803,15 +878,20 @@ pub fn edit(config: &Config, tag: &str, up_down: &Direction) -> Result<()> {
         }
     };
     let file = match *up_down {
-        Direction::Up   => mig.up.as_ref().expect("UP migration missing").to_owned(),
-        Direction::Down => mig.down.as_ref().expect("DOWN migration missing").to_owned(),
+        Direction::Up => mig.up.as_ref().expect("UP migration missing").to_owned(),
+        Direction::Down => mig
+            .down
+            .as_ref()
+            .expect("DOWN migration missing")
+            .to_owned(),
     };
     let file_path = file.to_str().unwrap();
     let command = format!("{} {}", editor, file_path);
     println!("* Running: `{}`", command);
-    let _ = prompt(&format!(" -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"))?;
+    let _ = prompt(&format!(
+        " -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"
+    ))?;
     open_file_in_fg(&editor, file_path)
         .map_err(|e| format_err!(ErrorKind::Migration, "Error editing migrant file: {}", e))?;
     Ok(())
 }
-
