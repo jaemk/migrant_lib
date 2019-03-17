@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.24.0]
+### Added
+
+### Changed
+- Bump rusqlite to 0.17
+
+### Removed
+
 ## [0.23.0]
 ### Added
 
