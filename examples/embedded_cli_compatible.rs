@@ -33,24 +33,20 @@ fn run() -> Result<(), Box<std::error::Error>> {
     // This needs to happen before any call to `Config::use_migrations` or `Config::reload`
     config.use_cli_compatible_tags(true);
 
+    // Define macro to embed cli compatible migrations
+    macro_rules! make_migration {
+        ($tag:expr) => {
+            migrant_lib::EmbeddedMigration::with_tag($tag)
+                .up(include_str!(concat!("../migrations/managed/", $tag, "/up.sql")))
+                .down(include_str!(concat!("../migrations/managed/", $tag, "/down.sql")))
+                .boxed()
+        };
+    }
+
     // Define migrations
     config.use_migrations(&[
-        EmbeddedMigration::with_tag("20180105040947_initial")
-            .up(include_str!(
-                "../migrations/managed/20180105040947_initial/up.sql"
-            ))
-            .down(include_str!(
-                "../migrations/managed/20180105040947_initial/down.sql"
-            ))
-            .boxed(),
-        EmbeddedMigration::with_tag("20180105040952_second")
-            .up(include_str!(
-                "../migrations/managed/20180105040952_second/up.sql"
-            ))
-            .down(include_str!(
-                "../migrations/managed/20180105040952_second/down.sql"
-            ))
-            .boxed(),
+        make_migration!("20180105040947_initial"),
+        make_migration!("20180105040952_second"),
     ])?;
 
     // Reload config, ping the database for applied migrations
