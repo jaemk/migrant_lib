@@ -14,7 +14,7 @@ This should be run with `cargo run --example embedded_cli_compatible --features 
 extern crate migrant_lib;
 
 #[cfg(feature = "d-sqlite")]
-use migrant_lib::{Config, Direction, EmbeddedMigration, Migrator, Settings};
+use migrant_lib::{Config, Direction, Migrator, Settings};
 #[cfg(feature = "d-sqlite")]
 use std::env;
 
@@ -37,8 +37,16 @@ fn run() -> Result<(), Box<std::error::Error>> {
     macro_rules! make_migration {
         ($tag:expr) => {
             migrant_lib::EmbeddedMigration::with_tag($tag)
-                .up(include_str!(concat!("../migrations/managed/", $tag, "/up.sql")))
-                .down(include_str!(concat!("../migrations/managed/", $tag, "/down.sql")))
+                .up(include_str!(concat!(
+                    "../migrations/managed/",
+                    $tag,
+                    "/up.sql"
+                )))
+                .down(include_str!(concat!(
+                    "../migrations/managed/",
+                    $tag,
+                    "/down.sql"
+                )))
                 .boxed()
         };
     }
