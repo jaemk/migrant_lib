@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.26.0]
+### Added
+
+### Changed
+- Bump rusqlite to 0.19
+- Bump mysql to 16
+- Bump toml to 0.5
+
 ## [0.25.0]
 ### Added
 
