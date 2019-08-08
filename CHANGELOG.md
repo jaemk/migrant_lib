@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.27.0]
+### Added
+
+### Changed
+- Bump rusqlite to 0.20
+
 ## [0.26.0]
 ### Added
 
