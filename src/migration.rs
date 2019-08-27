@@ -7,14 +7,14 @@ use std;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-use config::Config;
+use crate::config::Config;
+use crate::connection::ConnConfig;
+use crate::drivers;
+use crate::errors::*;
+use crate::migratable::Migratable;
+use crate::{DbKind, Direction, DT_FORMAT};
 #[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
 use connection::markers::DatabaseFeatureRequired;
-use connection::ConnConfig;
-use drivers;
-use errors::*;
-use migratable::Migratable;
-use {DbKind, Direction, DT_FORMAT};
 
 /// Define a migration that uses SQL statements saved in files.
 ///
@@ -79,7 +79,7 @@ impl FileMigration {
     }
 
     /// Box this migration up so it can be stored with other migrations
-    pub fn boxed(&self) -> Box<Migratable> {
+    pub fn boxed(&self) -> Box<dyn Migratable> {
         Box::new(self.clone())
     }
 }
@@ -89,7 +89,7 @@ impl Migratable for FileMigration {
         &self,
         db_kind: DbKind,
         config: &Config,
-    ) -> std::result::Result<(), Box<std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref up) = self.up {
             match db_kind {
                 DbKind::Sqlite => {
@@ -114,7 +114,7 @@ impl Migratable for FileMigration {
         &self,
         db_kind: DbKind,
         config: &Config,
-    ) -> std::result::Result<(), Box<std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref down) = self.down {
             match db_kind {
                 DbKind::Sqlite => {
@@ -180,7 +180,7 @@ impl Migratable for FileMigration {
 /// # extern crate migrant_lib;
 /// # use migrant_lib::EmbeddedMigration;
 /// # fn main() { run().unwrap(); }
-/// # fn run() -> Result<(), Box<std::error::Error>> {
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
 /// EmbeddedMigration::with_tag("create-users-table")
 ///     .up(include_str!("../migrations/embedded/create_users_table/up.sql"))
@@ -193,7 +193,7 @@ impl Migratable for FileMigration {
 /// # extern crate migrant_lib;
 /// # use migrant_lib::EmbeddedMigration;
 /// # fn main() { run().unwrap(); }
-/// # fn run() -> Result<(), Box<std::error::Error>> {
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// # #[cfg(any(feature="d-sqlite", feature="d-postgres", feature="d-mysql"))]
 /// EmbeddedMigration::with_tag("create-places-table")
 ///     .up("create table places(id integer);")
@@ -237,7 +237,7 @@ impl EmbeddedMigration {
     }
 
     /// Box this migration up so it can be stored with other migrations
-    pub fn boxed(&self) -> Box<Migratable> {
+    pub fn boxed(&self) -> Box<dyn Migratable> {
         Box::new(self.clone())
     }
 }
@@ -247,7 +247,7 @@ impl Migratable for EmbeddedMigration {
         &self,
         _db_kind: DbKind,
         _config: &Config,
-    ) -> std::result::Result<(), Box<std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref _up) = self.up {
             #[cfg(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql"))]
             match _db_kind {
@@ -275,7 +275,7 @@ impl Migratable for EmbeddedMigration {
         &self,
         db_kind: DbKind,
         config: &Config,
-    ) -> std::result::Result<(), Box<std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref down) = self.down {
             match db_kind {
                 DbKind::Sqlite => {
@@ -305,7 +305,7 @@ impl Migratable for EmbeddedMigration {
 }
 
 /// No-op to use with `FnMigration`
-pub fn noop(_: ConnConfig) -> std::result::Result<(), Box<std::error::Error>> {
+pub fn noop(_: ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
@@ -323,8 +323,8 @@ pub fn noop(_: ConnConfig) -> std::result::Result<(), Box<std::error::Error>> {
 /// # extern crate migrant_lib;
 /// # use migrant_lib::{FnMigration, ConnConfig};
 /// # fn main() { run().unwrap(); }
-/// # fn run() -> Result<(), Box<std::error::Error>> {
-/// fn add_data(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+/// # fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// fn add_data(config: ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
 ///     // do stuff...
 ///     Ok(())
 /// }
@@ -345,8 +345,8 @@ pub struct FnMigration<T, U> {
 
 impl<T, U> FnMigration<T, U>
 where
-    T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
-    U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
+    T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>,
+    U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>,
 {
     /// Create a new `FnMigration` with the given tag
     #[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
@@ -366,7 +366,7 @@ where
 
     /// Function to use for `up` migrations
     ///
-    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>`.
+    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>`.
     pub fn up(&mut self, f_up: T) -> &mut Self {
         self.up = Some(f_up);
         self
@@ -374,28 +374,28 @@ where
 
     /// Function to use for `down` migrations
     ///
-    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>`.
+    /// Function must have the signature `fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>`.
     pub fn down(&mut self, f_down: U) -> &mut Self {
         self.down = Some(f_down);
         self
     }
 
     /// Box this migration up so it can be stored with other migrations
-    pub fn boxed(&self) -> Box<Migratable> {
+    pub fn boxed(&self) -> Box<dyn Migratable> {
         Box::new(self.clone())
     }
 }
 
 impl<T, U> Migratable for FnMigration<T, U>
 where
-    T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
-    U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<std::error::Error>>,
+    T: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>,
+    U: 'static + Clone + Fn(ConnConfig) -> std::result::Result<(), Box<dyn std::error::Error>>,
 {
     fn apply_up(
         &self,
         _: DbKind,
         config: &Config,
-    ) -> std::result::Result<(), Box<::std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn (::std::error::Error)>> {
         if let Some(ref up) = self.up {
             up(ConnConfig::new(config))?;
         } else {
@@ -408,7 +408,7 @@ where
         &self,
         _: DbKind,
         config: &Config,
-    ) -> std::result::Result<(), Box<::std::error::Error>> {
+    ) -> std::result::Result<(), Box<dyn (::std::error::Error)>> {
         if let Some(ref down) = self.down {
             down(ConnConfig::new(config))?;
         } else {

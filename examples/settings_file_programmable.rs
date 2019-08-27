@@ -18,7 +18,7 @@ use migrant_lib::{Config, Direction, EmbeddedMigration, Migrator};
 use std::env;
 
 #[cfg(feature = "d-sqlite")]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let dir = env::current_dir().unwrap();
     let mut config = match migrant_lib::search_for_settings_file(&dir) {
         None => {
@@ -76,7 +76,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
 }
 
 #[cfg(not(feature = "d-sqlite"))]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
 }

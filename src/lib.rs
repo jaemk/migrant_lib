@@ -39,7 +39,7 @@
   prefixed with a timestamp, following: `[0-9]{14}_[a-z0-9-]+`.
   See the [embedded_cli_compatible](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_cli_compatible.rs)
   example.
-- Function migrations must have the signature `fn(ConnConfig) -> Result<(), Box<std::error::Error>>`.
+- Function migrations must have the signature `fn(ConnConfig) -> Result<(), Box<dyn std::error::Error>>`.
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
@@ -48,14 +48,14 @@
 
 ```rust,no_run
 # extern crate migrant_lib;
-# fn run() -> Result<(), Box<std::error::Error>> {
+# fn run() -> Result<(), Box<dyn std::error::Error>> {
 # let mut config = migrant_lib::Config::from_settings_file("path")?;
-fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
+fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
     print!(" Up!");
     Ok(())
 }
 
-fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
+fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
     print!(" Down!");
     Ok(())
 }
@@ -156,11 +156,11 @@ pub mod errors;
 mod migratable;
 pub mod migration;
 
-pub use config::{Config, Settings};
-pub use connection::ConnConfig;
-pub use errors::*;
-pub use migratable::Migratable;
-pub use migration::{EmbeddedMigration, FileMigration, FnMigration};
+pub use crate::config::{Config, Settings};
+pub use crate::connection::ConnConfig;
+pub use crate::errors::*;
+pub use crate::migratable::Migratable;
+pub use crate::migration::{EmbeddedMigration, FileMigration, FnMigration};
 
 static CONFIG_FILE: &'static str = "Migrant.toml";
 static DT_FORMAT: &'static str = "%Y%m%d%H%M%S";
@@ -307,7 +307,7 @@ pub enum Direction {
 
 impl fmt::Display for Direction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Direction::*;
+        use crate::Direction::*;
         match *self {
             Up => write!(f, "Up"),
             Down => write!(f, "Down"),
@@ -402,9 +402,9 @@ impl Migrator {
     /// Return the next available up or down migration
     fn next_available<'a>(
         direction: &Direction,
-        available: &'a [Box<Migratable>],
+        available: &'a [Box<dyn Migratable>],
         applied: &[String],
-    ) -> Result<Option<&'a Box<Migratable>>> {
+    ) -> Result<Option<&'a Box<dyn Migratable>>> {
         Ok(match *direction {
             Direction::Up => {
                 for mig in available {
@@ -432,8 +432,8 @@ impl Migrator {
     fn run_migration(
         config: &Config,
         direction: &Direction,
-        migration: &Box<Migratable>,
-    ) -> std::result::Result<(), Box<std::error::Error>> {
+        migration: &Box<dyn Migratable>,
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         let db_kind = config.settings.inner.db_kind();
         Ok(match *direction {
             Direction::Up => {

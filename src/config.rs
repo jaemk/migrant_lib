@@ -12,9 +12,9 @@ use chrono::{self, TimeZone};
 use toml;
 use url;
 
-use drivers;
-use errors::*;
-use {
+use crate::drivers;
+use crate::errors::*;
+use crate::{
     encode, invalid_full_tag, invalid_optional_stamp_tag, open_file_in_fg, prompt, write_to_path,
     DbKind, Migratable, CONFIG_FILE, DT_FORMAT, MYSQL_CONFIG_TEMPLATE, PG_CONFIG_TEMPLATE,
     SQLITE_CONFIG_TEMPLATE,
@@ -68,7 +68,7 @@ impl SettingsFileInitializer {
     /// use migrant_lib::Config;
     /// use migrant_lib::config::SqliteSettingsBuilder;
     /// # fn main() { run().unwrap() }
-    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// Config::init_in(env::current_dir()?)
     ///     .with_sqlite_options(
     ///         SqliteSettingsBuilder::empty()
@@ -92,7 +92,7 @@ impl SettingsFileInitializer {
     /// use migrant_lib::Config;
     /// use migrant_lib::config::PostgresSettingsBuilder;
     /// # fn main() { run().unwrap() }
-    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// Config::init_in(env::current_dir()?)
     ///     .with_postgres_options(
     ///         PostgresSettingsBuilder::empty()
@@ -118,7 +118,7 @@ impl SettingsFileInitializer {
     /// use migrant_lib::Config;
     /// use migrant_lib::config::MySqlSettingsBuilder;
     /// # fn main() { run().unwrap() }
-    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// Config::init_in(env::current_dir()?)
     ///     .with_mysql_options(
     ///         MySqlSettingsBuilder::empty()
@@ -1136,7 +1136,7 @@ pub struct Config {
     pub(crate) settings: Settings,
     pub(crate) settings_path: Option<PathBuf>,
     pub(crate) applied: Vec<String>,
-    pub(crate) migrations: Option<Vec<Box<Migratable>>>,
+    pub(crate) migrations: Option<Vec<Box<dyn Migratable>>>,
     pub(crate) cli_compatible: bool,
 }
 impl Config {
@@ -1159,16 +1159,16 @@ impl Config {
     ///     EmbeddedMigration, FileMigration, FnMigration
     /// };
     ///
-    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// mod migrations {
     ///     use super::*;
     ///     pub struct Custom;
     ///     impl Custom {
-    ///         pub fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
+    ///         pub fn up(_: migrant_lib::ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
     ///             print!(" <[Up!]>");
     ///             Ok(())
     ///         }
-    ///         pub fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<std::error::Error>> {
+    ///         pub fn down(_: migrant_lib::ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
     ///             print!(" <[Down!]>");
     ///             Ok(())
     ///         }
@@ -1201,7 +1201,7 @@ impl Config {
     /// # }
     /// # fn main() { run().unwrap(); }
     /// ```
-    pub fn use_migrations<T: AsRef<[Box<Migratable>]>>(
+    pub fn use_migrations<T: AsRef<[Box<dyn Migratable>]>>(
         &mut self,
         migrations: T,
     ) -> Result<&mut Self> {
@@ -1336,7 +1336,7 @@ impl Config {
     /// # extern crate migrant_lib;
     /// # use migrant_lib::{Settings, Config};
     /// # fn main() { run().unwrap(); }
-    /// # fn run() -> Result<(), Box<std::error::Error>> {
+    /// # fn run() -> Result<(), Box<dyn std::error::Error>> {
     /// let settings = Settings::configure_sqlite()
     ///     .database_path("/absolute/path/to/db.db")?
     ///     .migration_location("/absolute/path/to/migration_dir")?

@@ -34,7 +34,7 @@ mod migrations {
     pub struct AddUserData;
 
     impl AddUserData {
-        pub fn up(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+        pub fn up(config: ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
             let db_path = config.database_path()?;
             let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
@@ -42,12 +42,12 @@ mod migrations {
                 let id = i as u32 + 1;
                 conn.execute(
                     "insert into users (id, name) values (?1, ?2);",
-                    &[&id as &ToSql, name],
+                    &[&id as &dyn ToSql, name],
                 )?;
             }
             Ok(())
         }
-        pub fn down(config: ConnConfig) -> Result<(), Box<std::error::Error>> {
+        pub fn down(config: ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
             let db_path = config.database_path()?;
             let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
@@ -60,7 +60,7 @@ mod migrations {
 }
 
 #[cfg(feature = "d-sqlite")]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let path = env::current_dir()?;
     let path = path.join("db/embedded_example.db");
     let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
@@ -123,7 +123,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
 }
 
 #[cfg(not(feature = "d-sqlite"))]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
 }

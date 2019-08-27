@@ -1,14 +1,14 @@
 use std::fmt;
-use {Config, DbKind, Direction};
+use crate::{Config, DbKind, Direction};
 
 pub trait MigratableClone {
-    fn clone_migratable_box(&self) -> Box<Migratable>;
+    fn clone_migratable_box(&self) -> Box<dyn Migratable>;
 }
 impl<T> MigratableClone for T
 where
     T: 'static + Migratable + Clone,
 {
-    fn clone_migratable_box(&self) -> Box<Migratable> {
+    fn clone_migratable_box(&self) -> Box<dyn Migratable> {
         Box::new(self.clone())
     }
 }
@@ -16,13 +16,13 @@ where
 /// A type that can be used to define database migrations
 pub trait Migratable: MigratableClone {
     /// Define functionality that runs for `up` migrations
-    fn apply_up(&self, DbKind, &Config) -> Result<(), Box<::std::error::Error>> {
+    fn apply_up(&self, _: DbKind, _: &Config) -> Result<(), Box<dyn (::std::error::Error)>> {
         print_flush!("(empty)");
         Ok(())
     }
 
     /// Define functionality that runs for `down` migrations
-    fn apply_down(&self, DbKind, &Config) -> Result<(), Box<::std::error::Error>> {
+    fn apply_down(&self, _: DbKind, _: &Config) -> Result<(), Box<dyn (::std::error::Error)>> {
         print_flush!("(empty)");
         Ok(())
     }
@@ -31,17 +31,17 @@ pub trait Migratable: MigratableClone {
     fn tag(&self) -> String;
 
     /// Option migration description. Defaults to `Migratable::tag`
-    fn description(&self, &Direction) -> String {
+    fn description(&self, _: &Direction) -> String {
         self.tag()
     }
 }
-impl Clone for Box<Migratable> {
-    fn clone(&self) -> Box<Migratable> {
+impl Clone for Box<dyn Migratable> {
+    fn clone(&self) -> Box<dyn Migratable> {
         self.clone_migratable_box()
     }
 }
 
-impl fmt::Debug for Box<Migratable> {
+impl fmt::Debug for Box<dyn Migratable> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Migration: {}", self.tag())
     }
