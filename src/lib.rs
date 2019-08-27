@@ -143,7 +143,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use chrono::{TimeZone, Utc};
-use percent_encoding::{percent_encode, DEFAULT_ENCODE_SET};
+use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use regex::Regex;
 use walkdir::WalkDir;
 
@@ -284,7 +284,7 @@ fn open_file_in_fg(command: &str, file_path: &str) -> Result<()> {
 
 /// Percent encode a string
 fn encode(s: &str) -> String {
-    percent_encode(s.as_bytes(), DEFAULT_ENCODE_SET).to_string()
+    percent_encode(s.as_bytes(), NON_ALPHANUMERIC).to_string()
 }
 
 /// Prompt the user and return their input
