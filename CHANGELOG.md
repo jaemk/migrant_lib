@@ -5,6 +5,8 @@
 
 ### Changed
 - Bump rusqlite to 0.20
+- Bump url to 2
+- Bump percent-encoding to 2
 
 ## [0.26.0]
 ### Added
