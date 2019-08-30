@@ -1,6 +1,6 @@
-use errors::*;
+use crate::errors::*;
 ///! Database migration connection
-use {Config, DbKind};
+use crate::{Config, DbKind};
 
 #[allow(dead_code)]
 pub mod markers {

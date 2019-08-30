@@ -19,7 +19,7 @@ use migrant_lib::{Config, Direction, Migrator, Settings};
 use std::env;
 
 #[cfg(feature = "d-sqlite")]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let path = env::current_dir()?;
     let path = path.join("db/embedded_example.db");
     let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
@@ -83,7 +83,7 @@ fn run() -> Result<(), Box<std::error::Error>> {
 }
 
 #[cfg(not(feature = "d-sqlite"))]
-fn run() -> Result<(), Box<std::error::Error>> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     Err("d-sqlite database feature required")?;
     Ok(())
 }
