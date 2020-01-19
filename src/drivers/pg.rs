@@ -4,7 +4,7 @@ use std;
 use std::path::Path;
 
 #[cfg(feature = "d-postgres")]
-use postgres::{Connection, TlsMode};
+use postgres::{Client, NoTls};
 #[cfg(feature = "d-postgres")]
 use std::io::Read;
 
@@ -57,7 +57,7 @@ pub fn can_connect(conn_str: &str) -> Result<bool> {
 
 #[cfg(feature = "d-postgres")]
 pub fn can_connect(conn_str: &str) -> Result<bool> {
-    match Connection::connect(conn_str, TlsMode::None) {
+    match Client::connect(conn_str, NoTls) {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
     }
@@ -74,8 +74,8 @@ pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
 
 #[cfg(feature = "d-postgres")]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
-    let conn = Connection::connect(conn_str, TlsMode::None)
-        .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+    let mut conn =
+        Client::connect(conn_str, NoTls).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     let rows = conn
         .query(sql::PG_MIGRATION_TABLE_EXISTS, &[])
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
@@ -98,7 +98,7 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
 #[cfg(feature = "d-postgres")]
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
-        let conn = Connection::connect(conn_str, TlsMode::None)
+        let mut conn = Client::connect(conn_str, NoTls)
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
         conn.execute(sql::CREATE_TABLE, &[])
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
@@ -118,7 +118,7 @@ pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
 
 #[cfg(feature = "d-postgres")]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
-    let conn = Connection::connect(conn_str, TlsMode::None)?;
+    let mut conn = Client::connect(conn_str, NoTls)?;
     let rows = conn.query(sql::GET_MIGRATIONS, &[])?;
     Ok(rows.iter().map(|row| row.get(0)).collect())
 }
@@ -134,7 +134,7 @@ pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 
 #[cfg(feature = "d-postgres")]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
-    let conn = Connection::connect(conn_str, TlsMode::None)?;
+    let mut conn = Client::connect(conn_str, NoTls)?;
     conn.execute(
         "insert into __migrant_migrations (tag) values ($1)",
         &[&tag],
@@ -153,7 +153,7 @@ pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 
 #[cfg(feature = "d-postgres")]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
-    let conn = Connection::connect(conn_str, TlsMode::None)?;
+    let mut conn = Client::connect(conn_str, NoTls)?;
     conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
     Ok(())
 }
@@ -196,8 +196,8 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     let mut buf = String::new();
     file.read_to_string(&mut buf)?;
 
-    let conn = Connection::connect(conn_str, TlsMode::None)
-        .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+    let mut conn =
+        Client::connect(conn_str, NoTls).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     conn.batch_execute(&buf)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
@@ -213,8 +213,8 @@ pub fn run_migration_str(
 
 #[cfg(feature = "d-postgres")]
 pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
-    let conn = Connection::connect(conn_str, TlsMode::None)
-        .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+    let mut conn =
+        Client::connect(conn_str, NoTls).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     conn.batch_execute(stmt)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())

@@ -5,6 +5,12 @@
 ### Changed
 ### Removed
 
+## [0.28.0]
+### Changed
+- Bump rusqlite to 0.21
+- Bump postgres to 0.17
+- Bump mysql to 17
+
 ## [0.27.0]
 ### Added
 
