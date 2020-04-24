@@ -6,7 +6,7 @@ use std::path::Path;
 use std::io::Read;
 
 #[cfg(feature = "d-mysql")]
-use mysql::{self, Conn};
+use mysql::{prelude::*, Conn};
 
 #[cfg(not(feature = "d-mysql"))]
 use serde;
@@ -179,12 +179,7 @@ pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
 #[cfg(feature = "d-mysql")]
 pub fn migration_table_exists(conn_str: &str) -> Result<bool> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    let result = conn.query(sql::MYSQL_MIGRATION_TABLE_EXISTS)?;
-    let mut rows = vec![];
-    for row in result {
-        let (val,): (u32,) = mysql::from_row(row.unwrap());
-        rows.push(val);
-    }
+    let rows: Vec<u32> = conn.query(sql::MYSQL_MIGRATION_TABLE_EXISTS)?;
     assert!(
         rows.len() == 1,
         "Migration table check: Expected 1 returned row"
@@ -208,7 +203,7 @@ pub fn migration_setup(conn_str: &str) -> Result<bool> {
 pub fn migration_setup(conn_str: &str) -> Result<bool> {
     if !migration_table_exists(conn_str)? {
         let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-        conn.query(sql::MYSQL_CREATE_TABLE)
+        conn.query_drop(sql::MYSQL_CREATE_TABLE)
             .chain_err(|| "Error setting up migration table")?;
         return Ok(true);
     }
@@ -233,13 +228,7 @@ pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
 #[cfg(feature = "d-mysql")]
 pub fn select_migrations(conn_str: &str) -> Result<Vec<String>> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    let rows = conn.query(sql::GET_MIGRATIONS)?;
-    let mut res = vec![];
-    for row in rows {
-        let (tag,): (String,) = mysql::from_row(row.unwrap());
-        res.push(tag);
-    }
-    Ok(res)
+    Ok(conn.query(sql::GET_MIGRATIONS)?)
 }
 
 // --
@@ -254,7 +243,7 @@ pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 #[cfg(feature = "d-mysql")]
 pub fn insert_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    conn.prep_exec("insert into __migrant_migrations (tag) values (?)", (tag,))?;
+    conn.exec_drop("insert into __migrant_migrations (tag) values (?)", (tag,))?;
     Ok(())
 }
 
@@ -273,7 +262,7 @@ pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
 #[cfg(feature = "d-mysql")]
 pub fn remove_migration_tag(conn_str: &str, tag: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    conn.prep_exec("delete from __migrant_migrations where tag = ?", (tag,))?;
+    conn.exec_drop("delete from __migrant_migrations where tag = ?", (tag,))?;
     Ok(())
 }
 
@@ -296,7 +285,7 @@ pub fn run_migration(conn_str: &str, filename: &Path) -> Result<()> {
     file.read_to_string(&mut buf)?;
 
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    conn.query(&buf)
+    conn.query_drop(&buf)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
 }
@@ -312,7 +301,7 @@ pub fn run_migration_str(
 #[cfg(feature = "d-mysql")]
 pub fn run_migration_str(conn_str: &str, stmt: &str) -> Result<()> {
     let mut conn = Conn::new(conn_str).chain_err(|| "Connection Error")?;
-    conn.query(stmt)
+    conn.query_drop(stmt)
         .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
     Ok(())
 }
