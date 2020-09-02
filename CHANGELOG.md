@@ -5,6 +5,11 @@
 ### Changed
 ### Removed
 
+## [0.30.0]
+### Changed
+- Bump rusqlite to 0.24
+- Bump mysql to 19
+
 ## [0.29.0]
 ### Changed
 - Bump rusqlite to 0.23
