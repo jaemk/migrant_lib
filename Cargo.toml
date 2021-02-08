@@ -31,9 +31,9 @@ toml = "0.5"
 percent-encoding = "2"
 url = "2"
 log = "0.4"
-postgres = { version = "0.17", optional = true }
+postgres = { version = "0.19", optional = true }
 rusqlite = { version = "0.24", optional = true }
-mysql = { version = "19", optional = true }
+mysql = { version = "20", optional = true }
 
 [features]
 default = []
