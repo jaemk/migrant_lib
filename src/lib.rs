@@ -193,6 +193,9 @@ database_host = "__DB_HOST__"         # default "localhost"
 database_port = "__DB_PORT__"              # default "5432"
 migration_location = "__MIG_LOC__"  # default "migrations"
 
+# Optional customer ssl cert file
+# ssl_cert_file = "path/to/certificate.crt.pem.key"
+
 # Extra database connection parameters
 # with the format:
 # [database_params]
@@ -888,9 +891,7 @@ pub fn edit(config: &Config, tag: &str, up_down: &Direction) -> Result<()> {
     let file_path = file.to_str().unwrap();
     let command = format!("{} {}", editor, file_path);
     println!("* Running: `{}`", command);
-    let _ = prompt(&format!(
-        " -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"
-    ))?;
+    let _ = prompt(" -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually")?;
     open_file_in_fg(&editor, file_path)
         .map_err(|e| format_err!(ErrorKind::Migration, "Error editing migrant file: {}", e))?;
     Ok(())

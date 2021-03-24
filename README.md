@@ -45,6 +45,8 @@
   example for a working sample of function migrations.
 - When working with embedded and function migrations, the respective database feature must be
   enabled (`d-postgres` / `d-sqlite` / `d-mysql`).
+- When `d-postgres` is enabled, you can specify a custom/self-signed ssl certificate using
+  `PostgresSettingsBuilder::ssl_cert_file` or setting `ssl_cert_file = "..."` in your `Migrant.toml`.
 
 
 ```rust

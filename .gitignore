@@ -4,3 +4,4 @@ Cargo.lock
 target
 db
 db.db
+.idea

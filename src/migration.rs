@@ -98,7 +98,7 @@ impl Migratable for FileMigration {
                 }
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
-                    drivers::pg::run_migration(&conn_str, up)?;
+                    drivers::pg::run_migration(config.ssl_cert_file().as_deref(), &conn_str, up)?;
                 }
                 DbKind::MySql => {
                     let conn_str = config.connect_string()?;
@@ -123,7 +123,7 @@ impl Migratable for FileMigration {
                 }
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
-                    drivers::pg::run_migration(&conn_str, down)?;
+                    drivers::pg::run_migration(config.ssl_cert_file().as_deref(), &conn_str, down)?;
                 }
                 DbKind::MySql => {
                     let conn_str = config.connect_string()?;
@@ -257,7 +257,11 @@ impl Migratable for EmbeddedMigration {
                 }
                 DbKind::Postgres => {
                     let conn_str = _config.connect_string()?;
-                    drivers::pg::run_migration_str(&conn_str, _up.as_ref())?;
+                    drivers::pg::run_migration_str(
+                        _config.ssl_cert_file().as_deref(),
+                        &conn_str,
+                        _up.as_ref(),
+                    )?;
                 }
                 DbKind::MySql => {
                     let conn_str = _config.connect_string()?;
@@ -284,7 +288,11 @@ impl Migratable for EmbeddedMigration {
                 }
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
-                    drivers::pg::run_migration_str(&conn_str, down.as_ref())?;
+                    drivers::pg::run_migration_str(
+                        config.ssl_cert_file().as_deref(),
+                        &conn_str,
+                        down.as_ref(),
+                    )?;
                 }
                 DbKind::MySql => {
                     let conn_str = config.connect_string()?;

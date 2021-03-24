@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::{Config, DbKind, Direction};
+use std::fmt;
 
 pub trait MigratableClone {
     fn clone_migratable_box(&self) -> Box<dyn Migratable>;

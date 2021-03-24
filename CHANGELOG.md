@@ -5,6 +5,12 @@
 ### Changed
 ### Removed
 
+## [0.32.0]
+### Added
+- Add support for custom/self-signed ssl certificates with postgres
+### Changed
+### Removed
+
 ## [0.31.0]
 ### Changed
 - Bump postgres to 0.19

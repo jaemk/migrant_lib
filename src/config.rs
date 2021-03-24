@@ -514,6 +514,7 @@ pub struct PostgresSettingsBuilder {
     database_host: Option<String>,
     database_port: Option<String>,
     database_params: Option<BTreeMap<String, String>>,
+    ssl_cert_file: Option<PathBuf>,
     migration_location: Option<String>,
 }
 impl PostgresSettingsBuilder {
@@ -562,6 +563,13 @@ impl PostgresSettingsBuilder {
         self
     }
 
+    /// Set a custom ssl cert file
+    pub fn ssl_cert_file<P: AsRef<Path>>(&mut self, file: P) -> &mut Self {
+        let file = file.as_ref().to_path_buf();
+        self.ssl_cert_file = Some(file);
+        self
+    }
+
     /// Set directory to look for migration files.
     ///
     /// This can be an absolute or relative path. An absolute path should be preferred.
@@ -600,6 +608,7 @@ impl PostgresSettingsBuilder {
             database_host: self.database_host.clone(),
             database_port: self.database_port.clone(),
             database_params: self.database_params.clone(),
+            ssl_cert_file: self.ssl_cert_file.clone(),
             migration_location: self.migration_location.clone(),
         });
         Ok(Settings { inner })
@@ -715,6 +724,7 @@ pub(crate) struct PostgresSettings {
     pub(crate) database_host: Option<String>,
     pub(crate) database_port: Option<String>,
     pub(crate) database_params: Option<BTreeMap<String, String>>,
+    pub(crate) ssl_cert_file: Option<PathBuf>,
     pub(crate) migration_location: Option<String>,
 }
 impl PostgresSettings {
@@ -824,6 +834,8 @@ impl PostgresSettings {
             })
         });
 
+        let ssl_cert_file = self.ssl_cert_file.clone();
+
         let migration_location = self.migration_location.as_ref().map(|maybe_str| {
             if maybe_str.starts_with("env:") {
                 let var = maybe_str.trim_start_matches("env:");
@@ -841,6 +853,7 @@ impl PostgresSettings {
             database_host,
             database_port,
             database_params,
+            ssl_cert_file,
             migration_location,
         }
     }
@@ -1069,6 +1082,13 @@ impl ConfigurableSettings {
                 "Cannot generate connect-string for database-type: {}",
                 s.database_type
             ),
+        }
+    }
+
+    pub(crate) fn ssl_cert_file(&self) -> Option<PathBuf> {
+        match *self {
+            ConfigurableSettings::Postgres(ref s) => s.ssl_cert_file.clone(),
+            _ => None,
         }
     }
 }
@@ -1372,7 +1392,10 @@ impl Config {
 
         let applied = match self.settings.inner.db_kind() {
             DbKind::Sqlite => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
-            DbKind::Postgres => drivers::pg::select_migrations(&self.connect_string()?)?,
+            DbKind::Postgres => drivers::pg::select_migrations(
+                self.ssl_cert_file().as_deref(),
+                &self.connect_string()?,
+            )?,
             DbKind::MySql => drivers::mysql::select_migrations(&self.connect_string()?)?,
         };
         let mut tags = vec![];
@@ -1405,7 +1428,10 @@ impl Config {
             DbKind::Sqlite => {
                 drivers::sqlite::migration_table_exists(&self.database_path_string()?)
             }
-            DbKind::Postgres => drivers::pg::migration_table_exists(&self.connect_string()?),
+            DbKind::Postgres => drivers::pg::migration_table_exists(
+                self.ssl_cert_file().as_deref(),
+                &self.connect_string()?,
+            ),
             DbKind::MySql => drivers::mysql::migration_table_exists(&self.connect_string()?),
         }
     }
@@ -1416,7 +1442,11 @@ impl Config {
             DbKind::Sqlite => {
                 drivers::sqlite::insert_migration_tag(&self.database_path_string()?, tag)?
             }
-            DbKind::Postgres => drivers::pg::insert_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::Postgres => drivers::pg::insert_migration_tag(
+                self.ssl_cert_file().as_deref(),
+                &self.connect_string()?,
+                tag,
+            )?,
             DbKind::MySql => drivers::mysql::insert_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
@@ -1428,7 +1458,11 @@ impl Config {
             DbKind::Sqlite => {
                 drivers::sqlite::remove_migration_tag(&self.database_path_string()?, tag)?
             }
-            DbKind::Postgres => drivers::pg::remove_migration_tag(&self.connect_string()?, tag)?,
+            DbKind::Postgres => drivers::pg::remove_migration_tag(
+                self.ssl_cert_file().as_deref(),
+                &self.connect_string()?,
+                tag,
+            )?,
             DbKind::MySql => drivers::mysql::remove_migration_tag(&self.connect_string()?, tag)?,
         };
         Ok(())
@@ -1455,7 +1489,7 @@ impl Config {
             }
             &ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
-                let can_connect = drivers::pg::can_connect(&conn_str)?;
+                let can_connect = drivers::pg::can_connect(s.ssl_cert_file.as_deref(), &conn_str)?;
                 if !can_connect {
                     error!(" ERROR: Unable to connect to {}", conn_str);
                     error!("        Please initialize your database and user and then run `setup`");
@@ -1516,7 +1550,7 @@ impl Config {
             }
             &ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
-                drivers::pg::migration_setup(&conn_str)?
+                drivers::pg::migration_setup(self.ssl_cert_file().as_deref(), &conn_str)?
             }
             &ConfigurableSettings::MySql(ref s) => {
                 let conn_str = s.connect_string()?;
@@ -1639,5 +1673,9 @@ impl Config {
     /// Not intended for file-based databases (sqlite)
     pub fn connect_string(&self) -> Result<String> {
         self.settings.inner.connect_string()
+    }
+
+    pub fn ssl_cert_file(&self) -> Option<PathBuf> {
+        self.settings.inner.ssl_cert_file()
     }
 }
