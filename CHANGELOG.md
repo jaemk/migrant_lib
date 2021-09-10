@@ -5,6 +5,12 @@
 ### Changed
 ### Removed
 
+## [0.33.0]
+### Added
+### Changed
+- Bump rusqlite to 0.25
+### Removed
+
 ## [0.32.0]
 ### Added
 - Add support for custom/self-signed ssl certificates with postgres
