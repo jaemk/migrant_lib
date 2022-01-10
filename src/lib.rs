@@ -162,10 +162,10 @@ pub use crate::errors::*;
 pub use crate::migratable::Migratable;
 pub use crate::migration::{EmbeddedMigration, FileMigration, FnMigration};
 
-static CONFIG_FILE: &'static str = "Migrant.toml";
-static DT_FORMAT: &'static str = "%Y%m%d%H%M%S";
+static CONFIG_FILE: &str = "Migrant.toml";
+static DT_FORMAT: &str = "%Y%m%d%H%M%S";
 
-static SQLITE_CONFIG_TEMPLATE: &'static str = r#"
+static SQLITE_CONFIG_TEMPLATE: &str = r#"
 # Required, do not edit
 database_type = "sqlite"
 
@@ -179,7 +179,7 @@ migration_location = "__MIG_LOC__"  # default "migrations"
 
 "#;
 
-static PG_CONFIG_TEMPLATE: &'static str = r#"
+static PG_CONFIG_TEMPLATE: &str = r#"
 # Required, do not edit
 database_type = "postgres"
 
@@ -203,7 +203,7 @@ migration_location = "__MIG_LOC__"  # default "migrations"
 [database_params]
 "#;
 
-static MYSQL_CONFIG_TEMPLATE: &'static str = r#"
+static MYSQL_CONFIG_TEMPLATE: &str = r#"
 # Required, do not edit
 database_type = "mysql"
 
@@ -392,11 +392,12 @@ impl Migrator {
     pub fn apply(&self) -> Result<()> {
         let res = self.apply_migration(&self.config);
         if self.swallow_completion {
-            Ok(match res {
+            match res {
                 Ok(_) => (),
                 Err(ref e) if e.is_migration_complete() => (),
                 Err(e) => return Err(e),
-            })
+            };
+            Ok(())
         } else {
             res
         }
@@ -438,14 +439,15 @@ impl Migrator {
         migration: &Box<dyn Migratable>,
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         let db_kind = config.settings.inner.db_kind();
-        Ok(match *direction {
+        match *direction {
             Direction::Up => {
                 migration.apply_up(db_kind, config)?;
             }
             Direction::Down => {
                 migration.apply_down(db_kind, config)?;
             }
-        })
+        };
+        Ok(())
     }
 
     fn print(&self, s: &str) {
@@ -542,8 +544,7 @@ impl Migrator {
 
 /// Search for a `Migrant.toml` file in the current and parent directories
 pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
-    let base = base.as_ref().to_owned();
-    let mut base = base.clone();
+    let mut base = base.as_ref().to_owned();
     loop {
         for path in fs::read_dir(&base).unwrap() {
             let path = path.unwrap().path();
@@ -565,7 +566,7 @@ pub fn search_for_settings_file<T: AsRef<Path>>(base: T) -> Option<PathBuf> {
 ///
 /// Intended only for use with `FileMigration`s not managed directly in source
 /// with `Config::use_migrations`.
-fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
+fn search_for_migrations(mig_root: &Path) -> Result<Vec<FileMigration>> {
     // collect any .sql files into a Map<`stamp-tag`, Vec<up&down files>>
     let mut files = HashMap::new();
     for dir in WalkDir::new(mig_root) {
@@ -658,8 +659,8 @@ fn search_for_migrations(mig_root: &PathBuf) -> Result<Vec<FileMigration>> {
             )
         }
         migrations.push(FileMigration {
-            up: up,
-            down: down,
+            up,
+            down,
             tag: tag.to_owned(),
             stamp: Some(stamp),
         });
@@ -767,7 +768,7 @@ pub fn new(config: &Config, tag: &str) -> Result<()> {
 /// | `mysql`     | `mysqlsh` (`mysql-shell`)   |
 ///
 pub fn shell(config: &Config) -> Result<()> {
-    Ok(match config.settings.inner.db_kind() {
+    match config.settings.inner.db_kind() {
         DbKind::Sqlite => {
             let db_path = config.database_path()?;
             let _ = Command::new("sqlite3")
@@ -809,7 +810,8 @@ pub fn shell(config: &Config) -> Result<()> {
                 })?
                 .wait()?;
         }
-    })
+    };
+    Ok(())
 }
 
 /// Get user's selection of a set of migrations

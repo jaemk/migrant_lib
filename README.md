@@ -32,6 +32,7 @@
 
 ## Usage
 
+- You must enable the database features relevant to your usecase (`d-postgres` / `d-sqlite` / `d-mysql`).
 - Migrations can be defined as files, string literals, or functions.
 - File migrations can be either read from files at runtime or embedded in your executable at compile time
   (using [`include_str!`](https://doc.rust-lang.org/std/macro.include_str.html)).
@@ -43,8 +44,6 @@
 - Function migrations must have the signature `fn(ConnConfig) -> Result<(), Box<dyn std::error::Error>>`.
   See the [embedded_programmable](https://github.com/jaemk/migrant_lib/blob/master/examples/embedded_programmable.rs)
   example for a working sample of function migrations.
-- When working with embedded and function migrations, the respective database feature must be
-  enabled (`d-postgres` / `d-sqlite` / `d-mysql`).
 - When `d-postgres` is enabled, you can specify a custom/self-signed ssl certificate using
   `PostgresSettingsBuilder::ssl_cert_file` or setting `ssl_cert_file = "..."` in your `Migrant.toml`.
 

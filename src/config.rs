@@ -185,9 +185,9 @@ impl SettingsFileInitializer {
 
         let (db_kind, db_options) = if let Some(ref options) = self.database_options {
             let kind = match options {
-                &DatabaseConfigOptions::Sqlite(_) => DbKind::Sqlite,
-                &DatabaseConfigOptions::Postgres(_) => DbKind::Postgres,
-                &DatabaseConfigOptions::MySql(_) => DbKind::MySql,
+                DatabaseConfigOptions::Sqlite(_) => DbKind::Sqlite,
+                DatabaseConfigOptions::Postgres(_) => DbKind::Postgres,
+                DatabaseConfigOptions::MySql(_) => DbKind::MySql,
             };
             (kind, options.clone())
         } else {
@@ -429,9 +429,7 @@ impl SettingsFileInitializer {
                 &command
             );
             println!(" -- After editing, the `setup` command will be run for you");
-            let _ = prompt(&format!(
-                " -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually"
-            ))?;
+            let _ = prompt(" -- Press [ENTER] to open now or [CTRL+C] to exit and edit manually")?;
             open_file_in_fg(&editor, file_path)
                 .map_err(|e| format_err!(ErrorKind::Config, "Error editing config file: {}", e))?;
 
@@ -776,7 +774,7 @@ impl PostgresSettings {
                 }
             }
         }
-        Ok(url.into_string())
+        Ok(url.to_string())
     }
 
     pub(crate) fn resolve_env_vars(&self) -> Self {
@@ -919,7 +917,7 @@ impl MySqlSettings {
                 }
             }
         }
-        Ok(url.into_string())
+        Ok(url.to_string())
     }
 
     pub(crate) fn resolve_env_vars(&self) -> Self {
@@ -1303,7 +1301,7 @@ impl Config {
                     tag
                 )
             }
-        } else if invalid_optional_stamp_tag(&tag) {
+        } else if invalid_optional_stamp_tag(tag) {
             bail_fmt!(
                 ErrorKind::Migration,
                 "Found a non-conforming tag in the database: `{}`. \
@@ -1341,7 +1339,7 @@ impl Config {
         let settings = Settings::from_file(path)?;
         Ok(Config {
             settings_path: Some(path.to_owned()),
-            settings: settings,
+            settings,
             applied: vec![],
             migrations: None,
             cli_compatible: false,
@@ -1477,8 +1475,8 @@ impl Config {
     /// migrations table if it doesn't already exist
     pub fn setup(&self) -> Result<bool> {
         debug!(" ** Confirming database credentials...");
-        match &self.settings.inner {
-            &ConfigurableSettings::Sqlite(_) => {
+        match self.settings.inner {
+            ConfigurableSettings::Sqlite(_) => {
                 let created = drivers::sqlite::create_file_if_missing(&self.database_path()?)?;
                 debug!("    - checking if db file already exists...");
                 if created {
@@ -1487,7 +1485,7 @@ impl Config {
                     debug!("    - db already exists ✓");
                 }
             }
-            &ConfigurableSettings::Postgres(ref s) => {
+            ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
                 let can_connect = drivers::pg::can_connect(s.ssl_cert_file.as_deref(), &conn_str)?;
                 if !can_connect {
@@ -1510,7 +1508,7 @@ impl Config {
                     debug!("    - Connection confirmed ✓");
                 }
             }
-            &ConfigurableSettings::MySql(ref s) => {
+            ConfigurableSettings::MySql(ref s) => {
                 let conn_str = s.connect_string()?;
                 let can_connect = drivers::mysql::can_connect(&conn_str)?;
                 if !can_connect {
@@ -1544,15 +1542,15 @@ impl Config {
         }
 
         debug!("\n ** Setting up migrations table");
-        let table_created = match &self.settings.inner {
-            &ConfigurableSettings::Sqlite(_) => {
+        let table_created = match self.settings.inner {
+            ConfigurableSettings::Sqlite(_) => {
                 drivers::sqlite::migration_setup(&self.database_path()?)?
             }
-            &ConfigurableSettings::Postgres(ref s) => {
+            ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
                 drivers::pg::migration_setup(self.ssl_cert_file().as_deref(), &conn_str)?
             }
-            &ConfigurableSettings::MySql(ref s) => {
+            ConfigurableSettings::MySql(ref s) => {
                 let conn_str = s.connect_string()?;
                 drivers::mysql::migration_setup(&conn_str)?
             }

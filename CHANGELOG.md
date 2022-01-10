@@ -3,7 +3,9 @@
 ## [Unreleased]
 ### Added
 ### Changed
+- Update mysql from v20 -> v22
 ### Removed
+- Remove fallback CLI drivers. You must enable the feature related to your database.
 
 ## [0.33.0]
 ### Added

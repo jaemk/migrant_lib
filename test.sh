@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+
+PG_USER="${PG_USER:-postgres}"
 MYSQL_PASS=""
 if [[ -z $1 ]]; then
     echo "Error: Please specify your mysql root password or --no-pass"
@@ -37,9 +40,9 @@ function do_mysql() {
 function setup() {
     touch "$SQLITE"
 
-    sudo -u postgres createuser __migrant_user
-    sudo -u postgres psql -c "alter user __migrant_user with password 'pass'"
-    sudo -u postgres createdb __migrant_testing
+    sudo -u $PG_USER createuser __migrant_user
+    sudo -u $PG_USER psql -c "alter user __migrant_user with password 'pass'"
+    sudo -u $PG_USER createdb __migrant_testing
 
     do_mysql "create user '__migrant_user'@'localhost' identified by 'pass';" $1
     do_mysql "create database __migrant_testing;" $1
@@ -49,24 +52,18 @@ function setup() {
 # Destroy database tables
 # $1 -> mysql root password
 function teardown() {
+    set +e
     rm "$SQLITE"
 
-    sudo -u postgres dropdb __migrant_testing
-    sudo -u postgres psql -c 'drop user __migrant_user'
+    sudo -u $PG_USER dropdb __migrant_testing
+    sudo -u $PG_USER psql -c 'drop user __migrant_user'
 
     do_mysql "drop user '__migrant_user'@'localhost';" $1
     do_mysql "drop database __migrant_testing;" $1
+    set -e
 }
 
-setup $MYSQL_PASS
-SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test -- --nocapture
-if [ $? -eq 0 ]; then
-    teardown $MYSQL_PASS
-else
-    teardown $MYSQL_PASS
-    exit 1
-fi
-
+teardown $MYSQL_PASS
 setup $MYSQL_PASS
 SQLITE_TEST_CONN_STR=$SQLITE POSTGRES_TEST_CONN_STR=$POSTGRES MYSQL_TEST_CONN_STR=$MYSQL cargo test --features 'd-sqlite d-postgres d-mysql' -- --nocapture
 if [ $? -eq 0 ]; then
