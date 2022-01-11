@@ -4,6 +4,7 @@
 ### Added
 ### Changed
 - Update mysql from v20 -> v22
+- Update to edition=2018
 ### Removed
 - Remove fallback CLI drivers. You must enable the feature related to your database.
 

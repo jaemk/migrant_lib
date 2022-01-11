@@ -1,4 +1,5 @@
 [package]
+edition = "2018"
 name = "migrant_lib"
 version = "0.33.0"
 authors = ["James Kominick <james@kominick.com>"]

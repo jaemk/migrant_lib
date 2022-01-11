@@ -6,7 +6,7 @@ use std::path::Path;
 use std::io::Read;
 
 #[cfg(feature = "d-mysql")]
-use mysql::{prelude::*, Conn, Opts};
+use ::mysql::{prelude::*, Conn, Opts};
 
 #[cfg(not(feature = "d-mysql"))]
 mod m {
