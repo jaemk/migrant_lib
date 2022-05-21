@@ -1,5 +1,6 @@
 use super::errors::*;
 
+#[allow(dead_code)]
 mod sql {
     pub static CREATE_TABLE: &str = "create table __migrant_migrations(tag text unique);";
     pub static MYSQL_CREATE_TABLE: &str =

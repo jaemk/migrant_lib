@@ -1,12 +1,16 @@
 use super::*;
-use std::fs;
 use std::path::Path;
 
 #[cfg(feature = "d-sqlite")]
 use rusqlite::Connection;
+
+#[allow(unused_imports)]
+use std::fs;
+#[allow(unused_imports)]
 use std::io::Read;
 
 #[cfg(not(feature = "d-sqlite"))]
+#[allow(unused_variables)]
 mod m {
     use super::*;
     pub fn create_file_if_missing(path: &Path) -> Result<bool> {
@@ -66,12 +70,24 @@ mod m {
             conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, [], |row| row.get(0))?;
         Ok(exists)
     }
+    pub fn migration_table_exists_conn(conn: &Connection) -> Result<bool> {
+        let exists: bool =
+            conn.query_row(sql::SQLITE_MIGRATION_TABLE_EXISTS, [], |row| row.get(0))?;
+        Ok(exists)
+    }
 
     /// Create `__migrant_migrations` table
     pub fn migration_setup(db_path: &Path) -> Result<bool> {
         let db_path = db_path.to_str().unwrap();
         if !migration_table_exists(db_path)? {
             let conn = Connection::open(db_path)?;
+            conn.execute(sql::CREATE_TABLE, [])?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+    pub fn migration_setup_conn(conn: &Connection) -> Result<bool> {
+        if !migration_table_exists_conn(conn)? {
             conn.execute(sql::CREATE_TABLE, [])?;
             return Ok(true);
         }
@@ -90,9 +106,27 @@ mod m {
         Ok(migs)
     }
 
+    /// Select all migrations from `__migrant_migrations` table
+    pub fn select_migrations_conn(conn: &Connection) -> Result<Vec<String>> {
+        let mut stmt = conn.prepare(sql::GET_MIGRATIONS)?;
+        let mut rows = stmt.query([])?;
+        let mut migs = vec![];
+        while let Some(row) = rows.next()? {
+            migs.push(row.get(0)?);
+        }
+        Ok(migs)
+    }
+
     /// Insert tag into `__migrant_migrations` table
     pub fn insert_migration_tag(db_path: &str, tag: &str) -> Result<()> {
         let conn = Connection::open(db_path)?;
+        conn.execute(
+            "insert into __migrant_migrations (tag) values ($1)",
+            &[&tag],
+        )?;
+        Ok(())
+    }
+    pub fn insert_migration_tag_conn(conn: &Connection, tag: &str) -> Result<()> {
         conn.execute(
             "insert into __migrant_migrations (tag) values ($1)",
             &[&tag],
@@ -103,6 +137,10 @@ mod m {
     /// Remove tag from `__migrant_migrations` table
     pub fn remove_migration_tag(db_path: &str, tag: &str) -> Result<()> {
         let conn = Connection::open(db_path)?;
+        conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
+        Ok(())
+    }
+    pub fn remove_migration_tag_conn(conn: &Connection, tag: &str) -> Result<()> {
         conn.execute("delete from __migrant_migrations where tag = $1", &[&tag])?;
         Ok(())
     }
@@ -122,6 +160,19 @@ mod m {
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
         Ok(())
     }
+    /// Apply migration file to database
+    pub fn run_migration_conn(conn: &Connection, filename: &Path) -> Result<()> {
+        let mut file = fs::File::open(filename)?;
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)?;
+        if buf.is_empty() {
+            return Ok(());
+        }
+
+        conn.execute_batch(&buf)
+            .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+        Ok(())
+    }
 
     pub fn run_migration_str(db_path: &Path, stmt: &str) -> Result<()> {
         if stmt.is_empty() {
@@ -130,6 +181,16 @@ mod m {
 
         let conn =
             Connection::open(db_path).map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+        conn.execute_batch(stmt)
+            .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
+        Ok(())
+    }
+
+    pub fn run_migration_str_conn(conn: &Connection, stmt: &str) -> Result<()> {
+        if stmt.is_empty() {
+            return Ok(());
+        }
+
         conn.execute_batch(stmt)
             .map_err(|e| format_err!(ErrorKind::Migration, "{}", e))?;
         Ok(())

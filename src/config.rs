@@ -7,6 +7,8 @@ use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "d-sqlite")]
+use std::sync::{Arc, Mutex};
 
 use chrono::{self, TimeZone};
 use toml;
@@ -441,16 +443,95 @@ impl SettingsFileInitializer {
     }
 }
 
+#[cfg(feature = "d-sqlite")]
+#[derive(Clone)]
+pub struct SqliteConnection {
+    pub inner: Arc<Mutex<rusqlite::Connection>>,
+}
+#[cfg(feature = "d-sqlite")]
+impl SqliteConnection {
+    pub fn new(conn: Arc<Mutex<rusqlite::Connection>>) -> Self {
+        Self { inner: conn }
+    }
+}
+#[cfg(feature = "d-sqlite")]
+impl std::ops::Deref for SqliteConnection {
+    type Target = Arc<Mutex<rusqlite::Connection>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[cfg(not(feature = "d-sqlite"))]
+#[derive(Clone)]
+pub struct SqliteConnection {
+    pub inner: crate::connection::markers::SqliteFeatureRequired,
+}
+#[cfg(not(feature = "d-sqlite"))]
+impl std::ops::Deref for SqliteConnection {
+    type Target = crate::connection::markers::SqliteFeatureRequired;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl std::fmt::Debug for SqliteConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut f = f.debug_struct("SqliteConnection");
+
+        #[cfg(feature = "d-sqlite")]
+        f.field("inner", &"rusqlite::Connection");
+        #[cfg(not(feature = "d-sqlite"))]
+        f.field(
+            "inner",
+            &"migrant_lib::connection::markers::SqliteFeatureRequired",
+        );
+
+        f.finish()
+    }
+}
+
+#[derive(Debug)]
+pub enum DbConnection {
+    Sqlite(SqliteConnection),
+}
+impl DbConnection {
+    pub fn sqlite(&self) -> Result<SqliteConnection> {
+        match self {
+            Self::Sqlite(conn) => Ok(conn.clone()),
+            #[allow(unreachable_patterns)]
+            _ => bail_fmt!(
+                ErrorKind::Config,
+                "expected SqliteConnection, found {:?}",
+                self
+            ),
+        }
+    }
+}
+
 /// Sqlite settings builder
 #[derive(Debug, Clone, Default)]
 pub struct SqliteSettingsBuilder {
     database_path: Option<String>,
     migration_location: Option<String>,
+    connection: Option<SqliteConnection>,
 }
 impl SqliteSettingsBuilder {
     /// Initialize an empty builder
     pub fn empty() -> Self {
         Self::default()
+    }
+
+    /// Optionally specify an open `rusqlite::Connection` to use
+    #[cfg(feature = "d-sqlite")]
+    pub fn database_connection(
+        &mut self,
+        conn: Arc<Mutex<rusqlite::Connection>>,
+    ) -> Result<&mut Self> {
+        self.connection = Some(SqliteConnection::new(conn));
+        Ok(self)
     }
 
     /// **Required** -- Set the absolute path of a database file.
@@ -486,7 +567,7 @@ impl SqliteSettingsBuilder {
             .clone();
         {
             let p = Path::new(&db_path);
-            if !p.is_absolute() {
+            if !p.is_absolute() && self.connection.is_none() {
                 bail_fmt!(
                     ErrorKind::Config,
                     "Explicit settings database path must be absolute: {:?}",
@@ -498,6 +579,7 @@ impl SqliteSettingsBuilder {
             database_type: "sqlite".into(),
             database_path: db_path,
             migration_location: self.migration_location.clone(),
+            connection: self.connection.clone(),
         });
         Ok(Settings { inner })
     }
@@ -1002,6 +1084,8 @@ pub(crate) struct SqliteSettings {
     pub(crate) database_type: String,
     pub(crate) database_path: String,
     pub(crate) migration_location: Option<String>,
+    #[serde(skip)]
+    connection: Option<SqliteConnection>,
 }
 impl SqliteSettings {
     pub(crate) fn resolve_env_vars(&self) -> Self {
@@ -1026,6 +1110,7 @@ impl SqliteSettings {
             database_type,
             database_path,
             migration_location,
+            connection: None,
         }
     }
 }
@@ -1052,6 +1137,25 @@ impl ConfigurableSettings {
                 s.migration_location.as_ref().map(PathBuf::from)
             }
             ConfigurableSettings::MySql(ref s) => s.migration_location.as_ref().map(PathBuf::from),
+        }
+    }
+
+    pub(crate) fn database_connection(&self) -> Result<Option<DbConnection>> {
+        match *self {
+            ConfigurableSettings::Sqlite(ref s) => match s.connection {
+                None => Ok(None),
+                Some(ref conn) => Ok(Some(DbConnection::Sqlite(conn.clone()))),
+            },
+            ConfigurableSettings::Postgres(ref s) => bail_fmt!(
+                ErrorKind::Config,
+                "Cannot return database_connection for database-type: {}",
+                s.database_type
+            ),
+            ConfigurableSettings::MySql(ref s) => bail_fmt!(
+                ErrorKind::Config,
+                "Cannot return database_connection for database-type: {}",
+                s.database_type
+            ),
         }
     }
 
@@ -1158,6 +1262,10 @@ pub struct Config {
     pub(crate) cli_compatible: bool,
 }
 impl Config {
+    pub fn to_connection(self) -> Result<Option<DbConnection>> {
+        self.settings.inner.database_connection()
+    }
+
     /// Define an explicit set of `Migratable` migrations to use.
     ///
     /// The order of definition is the order in which they will be applied.
@@ -1389,7 +1497,20 @@ impl Config {
         }
 
         let applied = match self.settings.inner.db_kind() {
+            #[cfg(not(feature = "d-sqlite"))]
             DbKind::Sqlite => drivers::sqlite::select_migrations(&self.database_path_string()?)?,
+            #[cfg(feature = "d-sqlite")]
+            DbKind::Sqlite => match self.database_connection()? {
+                None => {
+                    let db_path = self.database_path_string()?;
+                    drivers::sqlite::select_migrations(&db_path)?
+                }
+                Some(conn) => {
+                    let conn = conn.sqlite()?;
+                    let conn = conn.lock().unwrap();
+                    drivers::sqlite::select_migrations_conn(&conn)?
+                }
+            },
             DbKind::Postgres => drivers::pg::select_migrations(
                 self.ssl_cert_file().as_deref(),
                 &self.connect_string()?,
@@ -1423,9 +1544,22 @@ impl Config {
     /// Check if a __migrant_migrations table exists
     pub(crate) fn migration_table_exists(&self) -> Result<bool> {
         match self.settings.inner.db_kind() {
+            #[cfg(not(feature = "d-sqlite"))]
             DbKind::Sqlite => {
                 drivers::sqlite::migration_table_exists(&self.database_path_string()?)
             }
+            #[cfg(feature = "d-sqlite")]
+            DbKind::Sqlite => match self.database_connection()? {
+                None => {
+                    let db_path = self.database_path_string()?;
+                    drivers::sqlite::migration_table_exists(&db_path)
+                }
+                Some(conn) => {
+                    let conn = conn.sqlite()?;
+                    let conn = conn.lock().unwrap();
+                    drivers::sqlite::migration_table_exists_conn(&conn)
+                }
+            },
             DbKind::Postgres => drivers::pg::migration_table_exists(
                 self.ssl_cert_file().as_deref(),
                 &self.connect_string()?,
@@ -1437,9 +1571,22 @@ impl Config {
     /// Insert given tag into database migration table
     pub(crate) fn insert_migration_tag(&self, tag: &str) -> Result<()> {
         match self.settings.inner.db_kind() {
+            #[cfg(not(feature = "d-sqlite"))]
             DbKind::Sqlite => {
                 drivers::sqlite::insert_migration_tag(&self.database_path_string()?, tag)?
             }
+            #[cfg(feature = "d-sqlite")]
+            DbKind::Sqlite => match self.database_connection()? {
+                None => {
+                    let db_path = self.database_path_string()?;
+                    drivers::sqlite::insert_migration_tag(&db_path, tag)?
+                }
+                Some(conn) => {
+                    let conn = conn.sqlite()?;
+                    let conn = conn.lock().unwrap();
+                    drivers::sqlite::insert_migration_tag_conn(&conn, tag)?
+                }
+            },
             DbKind::Postgres => drivers::pg::insert_migration_tag(
                 self.ssl_cert_file().as_deref(),
                 &self.connect_string()?,
@@ -1453,9 +1600,22 @@ impl Config {
     /// Remove a given tag from the database migration table
     pub(crate) fn delete_migration_tag(&self, tag: &str) -> Result<()> {
         match self.settings.inner.db_kind() {
+            #[cfg(not(feature = "d-sqlite"))]
             DbKind::Sqlite => {
                 drivers::sqlite::remove_migration_tag(&self.database_path_string()?, tag)?
             }
+            #[cfg(feature = "d-sqlite")]
+            DbKind::Sqlite => match self.database_connection()? {
+                None => {
+                    let db_path = self.database_path_string()?;
+                    drivers::sqlite::remove_migration_tag(&db_path, tag)?
+                }
+                Some(conn) => {
+                    let conn = conn.sqlite()?;
+                    let conn = conn.lock().unwrap();
+                    drivers::sqlite::remove_migration_tag_conn(&conn, tag)?
+                }
+            },
             DbKind::Postgres => drivers::pg::remove_migration_tag(
                 self.ssl_cert_file().as_deref(),
                 &self.connect_string()?,
@@ -1476,6 +1636,7 @@ impl Config {
     pub fn setup(&self) -> Result<bool> {
         debug!(" ** Confirming database credentials...");
         match self.settings.inner {
+            #[cfg(not(feature = "d-sqlite"))]
             ConfigurableSettings::Sqlite(_) => {
                 let created = drivers::sqlite::create_file_if_missing(&self.database_path()?)?;
                 debug!("    - checking if db file already exists...");
@@ -1485,6 +1646,21 @@ impl Config {
                     debug!("    - db already exists ✓");
                 }
             }
+            #[cfg(feature = "d-sqlite")]
+            ConfigurableSettings::Sqlite(_) => match self.database_connection()? {
+                None => {
+                    let created = drivers::sqlite::create_file_if_missing(&self.database_path()?)?;
+                    debug!("    - checking if db file already exists...");
+                    if created {
+                        debug!("    - db not found... creating now... ✓")
+                    } else {
+                        debug!("    - db already exists ✓");
+                    }
+                }
+                Some(_) => {
+                    debug!("    - using existing sqlite connection...");
+                }
+            },
             ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
                 let can_connect = drivers::pg::can_connect(s.ssl_cert_file.as_deref(), &conn_str)?;
@@ -1543,9 +1719,19 @@ impl Config {
 
         debug!("\n ** Setting up migrations table");
         let table_created = match self.settings.inner {
+            #[cfg(not(feature = "d-sqlite"))]
             ConfigurableSettings::Sqlite(_) => {
                 drivers::sqlite::migration_setup(&self.database_path()?)?
             }
+            #[cfg(feature = "d-sqlite")]
+            ConfigurableSettings::Sqlite(_) => match self.database_connection()? {
+                None => drivers::sqlite::migration_setup(&self.database_path()?)?,
+                Some(conn) => {
+                    let conn = conn.sqlite()?;
+                    let conn = conn.lock().unwrap();
+                    drivers::sqlite::migration_setup_conn(&conn)?
+                }
+            },
             ConfigurableSettings::Postgres(ref s) => {
                 let conn_str = s.connect_string()?;
                 drivers::pg::migration_setup(self.ssl_cert_file().as_deref(), &conn_str)?
@@ -1643,6 +1829,11 @@ impl Config {
             .ok_or_else(|| format_err!(ErrorKind::PathError, "Invalid utf8 path: {:?}", path))?
             .to_owned();
         Ok(path)
+    }
+
+    /// Return a database connection. This is intended for sqlite databases only
+    pub fn database_connection(&self) -> Result<Option<DbConnection>> {
+        self.settings.inner.database_connection()
     }
 
     /// Return the absolute path to the database file. This is intended for

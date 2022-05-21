@@ -8,13 +8,13 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
+#[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
+use crate::connection::markers::DatabaseFeatureRequired;
 use crate::connection::ConnConfig;
 use crate::drivers;
 use crate::errors::*;
 use crate::migratable::Migratable;
 use crate::{DbKind, Direction, DT_FORMAT};
-#[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
-use connection::markers::DatabaseFeatureRequired;
 
 /// Define a migration that uses SQL statements saved in files.
 ///
@@ -92,10 +92,23 @@ impl Migratable for FileMigration {
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref up) = self.up {
             match db_kind {
+                #[cfg(not(feature = "d-sqlite"))]
                 DbKind::Sqlite => {
                     let db_path = config.database_path()?;
                     drivers::sqlite::run_migration(&db_path, up)?;
                 }
+                #[cfg(feature = "d-sqlite")]
+                DbKind::Sqlite => match config.database_connection()? {
+                    None => {
+                        let db_path = config.database_path()?;
+                        drivers::sqlite::run_migration(&db_path, up)?;
+                    }
+                    Some(conn) => {
+                        let conn = conn.sqlite()?;
+                        let conn = conn.lock().unwrap();
+                        drivers::sqlite::run_migration_conn(&conn, up)?;
+                    }
+                },
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration(config.ssl_cert_file().as_deref(), &conn_str, up)?;
@@ -117,10 +130,23 @@ impl Migratable for FileMigration {
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref down) = self.down {
             match db_kind {
+                #[cfg(not(feature = "d-sqlite"))]
                 DbKind::Sqlite => {
                     let db_path = config.database_path()?;
                     drivers::sqlite::run_migration(&db_path, down)?;
                 }
+                #[cfg(feature = "d-sqlite")]
+                DbKind::Sqlite => match config.database_connection()? {
+                    None => {
+                        let db_path = config.database_path()?;
+                        drivers::sqlite::run_migration(&db_path, down)?;
+                    }
+                    Some(conn) => {
+                        let conn = conn.sqlite()?;
+                        let conn = conn.lock().unwrap();
+                        drivers::sqlite::run_migration_conn(&conn, down)?;
+                    }
+                },
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration(config.ssl_cert_file().as_deref(), &conn_str, down)?;
@@ -251,10 +277,23 @@ impl Migratable for EmbeddedMigration {
         if let Some(ref _up) = self.up {
             #[cfg(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql"))]
             match _db_kind {
+                #[cfg(not(feature = "d-sqlite"))]
                 DbKind::Sqlite => {
                     let db_path = _config.database_path()?;
                     drivers::sqlite::run_migration_str(&db_path, _up.as_ref())?;
                 }
+                #[cfg(feature = "d-sqlite")]
+                DbKind::Sqlite => match _config.database_connection()? {
+                    None => {
+                        let db_path = _config.database_path()?;
+                        drivers::sqlite::run_migration_str(&db_path, _up.as_ref())?;
+                    }
+                    Some(conn) => {
+                        let conn = conn.sqlite()?;
+                        let conn = conn.lock().unwrap();
+                        drivers::sqlite::run_migration_str_conn(&conn, _up.as_ref())?;
+                    }
+                },
                 DbKind::Postgres => {
                     let conn_str = _config.connect_string()?;
                     drivers::pg::run_migration_str(
@@ -282,10 +321,23 @@ impl Migratable for EmbeddedMigration {
     ) -> std::result::Result<(), Box<dyn std::error::Error>> {
         if let Some(ref down) = self.down {
             match db_kind {
+                #[cfg(not(feature = "d-sqlite"))]
                 DbKind::Sqlite => {
                     let db_path = config.database_path()?;
                     drivers::sqlite::run_migration_str(&db_path, down.as_ref())?;
                 }
+                #[cfg(feature = "d-sqlite")]
+                DbKind::Sqlite => match config.database_connection()? {
+                    None => {
+                        let db_path = config.database_path()?;
+                        drivers::sqlite::run_migration_str(&db_path, down.as_ref())?;
+                    }
+                    Some(conn) => {
+                        let conn = conn.sqlite()?;
+                        let conn = conn.lock().unwrap();
+                        drivers::sqlite::run_migration_str_conn(&conn, down.as_ref())?;
+                    }
+                },
                 DbKind::Postgres => {
                     let conn_str = config.connect_string()?;
                     drivers::pg::run_migration_str(
