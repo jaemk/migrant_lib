@@ -8,13 +8,13 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use crate::config::Config;
+#[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
+use crate::connection::markers::DatabaseFeatureRequired;
 use crate::connection::ConnConfig;
 use crate::drivers;
 use crate::errors::*;
 use crate::migratable::Migratable;
 use crate::{DbKind, Direction, DT_FORMAT};
-#[cfg(not(any(feature = "d-postgres", feature = "d-sqlite", feature = "d-mysql")))]
-use connection::markers::DatabaseFeatureRequired;
 
 /// Define a migration that uses SQL statements saved in files.
 ///

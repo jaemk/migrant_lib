@@ -3,8 +3,14 @@
 ## [Unreleased]
 ### Added
 ### Changed
+### Removed
+
+## [0.34.0]
+### Added
+### Changed
 - Update mysql from v20 -> v22
 - Update to edition=2018
+- Update rusqlite -> 0.29.0
 ### Removed
 - Remove fallback CLI drivers. You must enable the feature related to your database.
 
