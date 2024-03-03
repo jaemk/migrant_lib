@@ -3,12 +3,14 @@ use super::*;
 use std;
 use std::path::Path;
 
+#[allow(unused_imports)]
 use std::io::Read;
 
 #[cfg(feature = "d-mysql")]
 use ::mysql::{prelude::*, Conn, Opts};
 
 #[cfg(not(feature = "d-mysql"))]
+#[allow(unused_variables)]
 mod m {
     use super::*;
     pub fn can_connect(conn_str: &str) -> Result<bool> {

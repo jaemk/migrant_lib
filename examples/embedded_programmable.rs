@@ -26,7 +26,7 @@ use migrant_lib::{
 #[cfg(feature = "d-sqlite")]
 use rusqlite::types::ToSql;
 #[cfg(feature = "d-sqlite")]
-use std::env;
+use std::sync::{Arc, Mutex};
 
 #[cfg(feature = "d-sqlite")]
 mod migrations {
@@ -35,8 +35,14 @@ mod migrations {
 
     impl AddUserData {
         pub fn up(config: ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
-            let db_path = config.database_path()?;
-            let conn = rusqlite::Connection::open(&db_path)?;
+            let conn = config
+                .database_connection()?
+                .ok_or("expected db connection")?
+                .sqlite()?;
+            let conn = conn.lock().unwrap();
+            // alternatively, open a new connection
+            // let db_path = config.database_path()?;
+            // let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for (i, name) in people.iter().enumerate() {
                 let id = i as u32 + 1;
@@ -48,8 +54,14 @@ mod migrations {
             Ok(())
         }
         pub fn down(config: ConnConfig) -> Result<(), Box<dyn std::error::Error>> {
-            let db_path = config.database_path()?;
-            let conn = rusqlite::Connection::open(&db_path)?;
+            let conn = config
+                .database_connection()?
+                .ok_or("expected db connection")?
+                .sqlite()?;
+            let conn = conn.lock().unwrap();
+            // alternatively, open a new connection
+            // let db_path = config.database_path()?;
+            // let conn = rusqlite::Connection::open(&db_path)?;
             let people = ["james", "lauren", "bean"];
             for name in &people {
                 conn.execute("delete from users where name = ?1", &[name])?;
@@ -61,9 +73,16 @@ mod migrations {
 
 #[cfg(feature = "d-sqlite")]
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let path = env::current_dir()?;
-    let path = path.join("db/embedded_example.db");
-    let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
+    // let path = env::current_dir()?;
+    // let path = path.join("db/embedded_example.db");
+    // let settings = Settings::configure_sqlite().database_path(&path)?.build()?;
+    //
+    let path = ":memory:";
+    let conn = Arc::new(Mutex::new(rusqlite::Connection::open(path)?));
+    let settings = Settings::configure_sqlite()
+        .database_path(path)?
+        .database_connection(conn)?
+        .build()?;
 
     let mut config = Config::with_settings(&settings);
     config.setup()?;

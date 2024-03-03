@@ -1,13 +1,20 @@
+#[cfg(feature = "d-sqlite")]
+use crate::config::DbConnection;
 use crate::errors::*;
 ///! Database migration connection
 use crate::{Config, DbKind};
 
 #[allow(dead_code)]
 pub mod markers {
+    #[derive(Clone)]
     pub struct PostgresFeatureRequired;
+    #[derive(Clone)]
     pub struct MySQLFeatureRequired;
+    #[derive(Clone)]
     pub struct PostgresOrMySQLFeatureRequired;
+    #[derive(Clone)]
     pub struct SqliteFeatureRequired;
+    #[derive(Clone)]
     pub struct DatabaseFeatureRequired;
 }
 #[allow(unused_imports)]
@@ -50,5 +57,11 @@ impl<'a> ConnConfig<'a> {
     #[cfg(feature = "d-sqlite")]
     pub fn database_path(&self) -> Result<::std::path::PathBuf> {
         self.config.database_path()
+    }
+
+    /// Return a rusqlite database connection
+    #[cfg(feature = "d-sqlite")]
+    pub fn database_connection(&self) -> Result<Option<DbConnection>> {
+        self.config.database_connection()
     }
 }

@@ -5,9 +5,12 @@ use std::path::Path;
 
 #[cfg(feature = "d-postgres")]
 use postgres::{Client, NoTls};
+
+#[allow(unused_imports)]
 use std::io::Read;
 
 #[cfg(not(feature = "d-postgres"))]
+#[allow(unused_variables)]
 mod m {
     use super::*;
     pub fn can_connect(cert: Option<&Path>, conn_str: &str) -> Result<bool> {
